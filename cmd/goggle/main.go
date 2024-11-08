@@ -10,23 +10,28 @@ import (
 
 	"github.com/avrebarra/goggle/internal/core/runtime/rpcserver"
 	"github.com/avrebarra/goggle/internal/core/runtime/uiserver"
+	"github.com/avrebarra/goggle/internal/module/moduletoggle"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/leaanthony/clir"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var (
 	Version = "v0.0.0-unbuilt"
 )
 
-type RuntimeConfig struct {
-	PortUI  int `validate:"required"`
-	PortRPC int `validate:"required"`
+type BaseConfig struct {
+	PortUI       int    `validate:"required"`
+	PortRPC      int    `validate:"required"`
+	SQLiteDBPath string `validate:"required"`
 }
 
 func main() {
-	conf := &RuntimeConfig{
-		PortRPC: 9000,
-		PortUI:  9001,
+	conf := &BaseConfig{
+		PortRPC:      9000,
+		PortUI:       9001,
+		SQLiteDBPath: "./goggle.db",
 	}
 
 	cli := clir.NewCli("goggle", "goggle manager runner", Version)
@@ -48,7 +53,11 @@ func main() {
 		}
 
 		// construct runtimes
-		rrpc, err := rpcserver.NewRuntime(rpcserver.ConfigRuntime{Port: conf.PortRPC})
+		rrpc, err := rpcserver.NewRuntime(rpcserver.ConfigRuntime{
+			Version:       Version,
+			Port:          conf.PortRPC,
+			ToggleService: deps.ToggleService,
+		})
 		if err != nil {
 			err = fmt.Errorf("error creating rpc runtime: %v", err)
 			return
@@ -81,9 +90,31 @@ func main() {
 
 // ***
 
-type RuntimeDeps struct{}
+type BaseDeps struct {
+	ToggleService moduletoggle.Service
+}
 
-func ConstructDeps(conf *RuntimeConfig) *RuntimeDeps {
-	deps := &RuntimeDeps{}
-	return deps
+func ConstructDeps(conf *BaseConfig) *BaseDeps {
+	check := func(err error, name string) {
+		if err == nil {
+			return
+		}
+		err = fmt.Errorf("failed to construct dependencies on %s: %v", name, err)
+		log.Fatal(err)
+	}
+
+	db, err := gorm.Open(sqlite.Open(conf.SQLiteDBPath), &gorm.Config{})
+	check(err, "db/sqlite")
+
+	togglestore, err := moduletoggle.NewStoreSQLite(moduletoggle.ConfigStoreSQLite{DB: db})
+	check(err, "store/toggle")
+
+	togglesvc, err := moduletoggle.NewService(moduletoggle.ServiceConfig{
+		ToggleStore: togglestore,
+	})
+	check(err, "service/toggle")
+
+	return &BaseDeps{
+		ToggleService: togglesvc,
+	}
 }

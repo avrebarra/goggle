@@ -11,29 +11,29 @@ import (
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
-	"github.com/gorilla/rpc/json"
 )
 
 type ConfigRuntime struct {
+	Version       string               `validate:"required"`
 	Port          int                  `validate:"required"`
 	ToggleService moduletoggle.Service `validate:"required"`
+	StartedAt     time.Time            `validate:"required"`
 }
 
 type Runtime struct {
 	Config ConfigRuntime
-	Server *ServerStd
+	Server *Handler
 }
 
 func NewRuntime(cfg ConfigRuntime) (out *Runtime, err error) {
+	cfg.StartedAt = time.Now()
 	if err = validator.Validate(&cfg); err != nil {
 		err = fmt.Errorf("bad config: %v", err)
 		return
 	}
 
-	server := &ServerStd{
-		ConfigRuntime: cfg,
-		StartedAt:     time.Now(),
-	}
+	server := &Handler{ConfigRuntime: cfg}
+
 	if err = validator.Validate(server); err != nil {
 		err = fmt.Errorf("bad server construction: %v", err)
 		return
@@ -44,11 +44,14 @@ func NewRuntime(cfg ConfigRuntime) (out *Runtime, err error) {
 }
 
 func (e *Runtime) Run() (err error) {
+	server := Handler{ConfigRuntime: e.Config}
+
 	s := rpc.NewServer()
-	s.RegisterCodec(json.NewCodec(), "application/json")
-	s.RegisterService(e.Server, "GoggleRPC")
+	s.RegisterCodec(&Codec{}, "application/json")
+	s.RegisterService(&server, "GoggleRPC")
 
 	r := mux.NewRouter()
+	r.Use(MWRecoverer())
 	r.Handle("/", s)
 
 	if err = http.ListenAndServe(fmt.Sprintf(":%d", e.Config.Port), r); err != nil {
