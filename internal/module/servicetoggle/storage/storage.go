@@ -1,8 +1,10 @@
-package moduletoggle
+package storage
 
 import (
 	"context"
 	"errors"
+
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
 
 	"github.com/guregu/null/v5"
 )
@@ -11,10 +13,10 @@ var (
 	ErrStoreNotFound = errors.New("not found")
 )
 
-type Store interface {
-	FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []ToggleWithDetail, total int64, err error)
-	ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []ToggleWithDetail, total int64, err error)
-	FetchToggleStatByID(ctx context.Context, id string) (out ToggleStat, err error)
+type Storage interface {
+	FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error)
+	ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error)
+	FetchToggleStatByID(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error)
 	RemoveTogglesByIDs(ctx context.Context, ids []string) (err error)
 }
 

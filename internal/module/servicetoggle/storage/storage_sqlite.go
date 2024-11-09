@@ -1,11 +1,12 @@
-package moduletoggle
+package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
+
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
 
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/validator"
@@ -18,26 +19,26 @@ var (
 	SQLiteTableAccessLogs = "access_logs"
 )
 
-var _ Store = (*StoreSQLite)(nil)
+var _ Storage = (*StorageSQLite)(nil)
 
-type ConfigStoreSQLite struct {
+type ConfigStorageSQLite struct {
 	DB *gorm.DB `validate:"required,structonly"`
 }
 
-type StoreSQLite struct {
-	ConfigStoreSQLite
+type StorageSQLite struct {
+	ConfigStorageSQLite
 }
 
-func NewStoreSQLite(cfg ConfigStoreSQLite) (out *StoreSQLite, err error) {
+func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
 	if err = validator.Validate(&cfg); err != nil {
 		err = fmt.Errorf("bad config: %w", err)
 		return
 	}
-	out = &StoreSQLite{ConfigStoreSQLite: cfg}
+	out = &StorageSQLite{ConfigStorageSQLite: cfg}
 	return
 }
 
-func (s *StoreSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []ToggleWithDetail, total int64, err error) {
+func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsFetchPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
 		err = fmt.Errorf("bad params: %w", err)
@@ -95,12 +96,12 @@ func (s *StoreSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out 
 		return
 	}
 
-	out = []ToggleWithDetail{}
+	out = []domaintoggle.ToggleWithDetail{}
 	for _, d := range data {
 		t, _ := time.Parse(time.DateTime, d.LastAccessedAt.String)
 
-		val := ToggleWithDetail{}
-		utils.Translate(&val, &d, &ToggleWithDetail{LastAccessedAt: t})
+		val := domaintoggle.ToggleWithDetail{}
+		utils.Translate(&val, &d, &domaintoggle.ToggleWithDetail{LastAccessedAt: t})
 
 		out = append(out, val)
 	}
@@ -108,7 +109,7 @@ func (s *StoreSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out 
 	return
 }
 
-func (s *StoreSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []ToggleWithDetail, total int64, err error) {
+func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsListHeadlessAccessPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
 		err = fmt.Errorf("bad params: %w", err)
@@ -157,12 +158,12 @@ func (s *StoreSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsList
 		return
 	}
 
-	out = []ToggleWithDetail{}
+	out = []domaintoggle.ToggleWithDetail{}
 	for _, d := range data {
 		t, _ := time.Parse(time.DateTime, d.LastAccessedAt)
 
-		val := ToggleWithDetail{}
-		utils.Translate(&val, &d, &ToggleWithDetail{LastAccessedAt: t})
+		val := domaintoggle.ToggleWithDetail{}
+		utils.Translate(&val, &d, &domaintoggle.ToggleWithDetail{LastAccessedAt: t})
 
 		out = append(out, val)
 	}
@@ -170,7 +171,7 @@ func (s *StoreSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsList
 	return
 }
 
-func (s *StoreSQLite) FetchToggleStatByID(ctx context.Context, id string) (out ToggleStat, err error) {
+func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error) {
 	type ResultData struct {
 		ID     string `gorm:"column:id"`
 		Status bool   `gorm:"column:status"`
@@ -192,14 +193,11 @@ func (s *StoreSQLite) FetchToggleStatByID(ctx context.Context, id string) (out T
 		err = fmt.Errorf("db fetch failed: %w", err)
 		return
 	}
-	jstr, _ := json.MarshalIndent(map[string]any{"data": data}, "", "  ")
-	fmt.Println(string(jstr))
-
-	out = ToggleStat(data)
+	out = domaintoggle.ToggleStat(data)
 	return
 }
 
-func (s *StoreSQLite) RemoveTogglesByIDs(ctx context.Context, ids []string) (err error) {
+func (s *StorageSQLite) RemoveTogglesByIDs(ctx context.Context, ids []string) (err error) {
 	type ResultData struct{}
 	q := s.DB.Table(SQLiteTableToggles+" as tog").
 		Delete(&ResultData{}, "tog.id IN (?)", ids)

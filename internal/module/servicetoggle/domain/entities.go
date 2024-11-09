@@ -1,4 +1,4 @@
-package moduletoggle
+package domain
 
 import (
 	"time"

@@ -7,17 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/avrebarra/goggle/internal/module/moduletoggle"
+	"github.com/avrebarra/goggle/internal/module/servicetoggle"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
 )
 
 type ConfigRuntime struct {
-	Version       string               `validate:"required"`
-	Port          int                  `validate:"required"`
-	ToggleService moduletoggle.Service `validate:"required"`
-	StartedAt     time.Time            `validate:"required"`
+	Version       string                `validate:"required"`
+	Port          int                   `validate:"required"`
+	ToggleService servicetoggle.Service `validate:"required"`
+	StartedAt     time.Time             `validate:"required"`
 }
 
 type Runtime struct {

@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/avrebarra/goggle/internal/module/moduletoggle"
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
+
+	"github.com/avrebarra/goggle/internal/module/servicetoggle"
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/guregu/null/v5"
@@ -26,7 +28,7 @@ func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespList
 	}
 
 	ctx := r.Context()
-	params := moduletoggle.ParamsDoListToggles{}
+	params := servicetoggle.ParamsDoListToggles{}
 	_ = utils.Translate(&params, *in, nil)
 	data, tot, err := s.ToggleService.DoListToggles(ctx, params)
 	if err != nil {
@@ -53,7 +55,7 @@ func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out
 	}
 
 	ctx := r.Context()
-	params := moduletoggle.ParamsDoListStrayToggles{}
+	params := servicetoggle.ParamsDoListStrayToggles{}
 	_ = utils.Translate(&params, *in, nil)
 	data, tot, err := s.ToggleService.DoListStrayToggles(ctx, params)
 	if err != nil {
@@ -82,7 +84,7 @@ func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err
 
 	ctx := r.Context()
 	data, err := s.ToggleService.DoGetToggle(ctx, in.ID)
-	if errors.Is(err, moduletoggle.ErrNotFound) {
+	if errors.Is(err, servicetoggle.ErrNotFound) {
 		err = RespErrorPresets[ErrDataNotFound]
 		return
 	}
@@ -106,7 +108,7 @@ func (s *Handler) CreateToggle(r *http.Request, in *Toggle, out *Toggle) (err er
 	}
 
 	ctx := r.Context()
-	data, err := s.ToggleService.DoCreateToggle(ctx, moduletoggle.Toggle(*in))
+	data, err := s.ToggleService.DoCreateToggle(ctx, domaintoggle.Toggle(*in))
 	if err != nil {
 		err = fmt.Errorf("service failure: %w", err)
 		return
@@ -141,7 +143,7 @@ func (s *Handler) RemoveToggle(r *http.Request, in *ReqRemoveToggle, out *Toggle
 
 	ctx := r.Context()
 	data, err := s.ToggleService.DoRemoveToggle(ctx, in.ID)
-	if errors.Is(err, moduletoggle.ErrNotFound) {
+	if errors.Is(err, servicetoggle.ErrNotFound) {
 		err = RespErrorPresets[ErrDataNotFound]
 		return
 	}
@@ -162,7 +164,7 @@ func (s *Handler) StatToggle(r *http.Request, in *ReqStatToggle, out *ToggleComp
 
 	ctx := r.Context()
 	data, err := s.ToggleService.DoStatToggle(ctx, in.ID)
-	if errors.Is(err, moduletoggle.ErrNotFound) {
+	if errors.Is(err, servicetoggle.ErrNotFound) {
 		err = RespErrorPresets[ErrDataNotFound]
 		return
 	}

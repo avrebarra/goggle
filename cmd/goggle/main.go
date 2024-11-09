@@ -8,9 +8,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	storagetoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/storage"
+
 	"github.com/avrebarra/goggle/internal/core/runtime/rpcserver"
 	"github.com/avrebarra/goggle/internal/core/runtime/uiserver"
-	"github.com/avrebarra/goggle/internal/module/moduletoggle"
+	"github.com/avrebarra/goggle/internal/module/servicetoggle"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/leaanthony/clir"
 	"gorm.io/driver/sqlite"
@@ -91,7 +93,7 @@ func main() {
 // ***
 
 type BaseDeps struct {
-	ToggleService moduletoggle.Service
+	ToggleService servicetoggle.Service
 }
 
 func ConstructDeps(conf *BaseConfig) *BaseDeps {
@@ -106,10 +108,10 @@ func ConstructDeps(conf *BaseConfig) *BaseDeps {
 	db, err := gorm.Open(sqlite.Open(conf.SQLiteDBPath), &gorm.Config{})
 	check(err, "db/sqlite")
 
-	togglestore, err := moduletoggle.NewStoreSQLite(moduletoggle.ConfigStoreSQLite{DB: db})
+	togglestore, err := storagetoggle.NewStorageSQLite(storagetoggle.ConfigStorageSQLite{DB: db})
 	check(err, "store/toggle")
 
-	togglesvc, err := moduletoggle.NewService(moduletoggle.ServiceConfig{
+	togglesvc, err := servicetoggle.NewService(servicetoggle.ServiceConfig{
 		ToggleStore: togglestore,
 	})
 	check(err, "service/toggle")
