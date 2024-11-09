@@ -29,7 +29,7 @@ func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespList
 
 	ctx := r.Context()
 	params := servicetoggle.ParamsDoListToggles{}
-	_ = utils.Translate(&params, *in, nil)
+	_ = utils.MorphFrom(&params, *in, nil)
 	data, tot, err := s.ToggleService.DoListToggles(ctx, params)
 	if err != nil {
 		err = fmt.Errorf("service failure: %w", err)
@@ -39,7 +39,7 @@ func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespList
 	resp := &RespListToggles{Items: []ToggleWithDetail{}, Total: tot}
 	for _, d := range data {
 		val := ToggleWithDetail{}
-		utils.Translate(&val, d, nil)
+		utils.MorphFrom(&val, d, nil)
 		if d.LastAccessedAt.IsZero() {
 			val.LastAccessedAt = null.Time{}
 		}
@@ -56,7 +56,7 @@ func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out
 
 	ctx := r.Context()
 	params := servicetoggle.ParamsDoListStrayToggles{}
-	_ = utils.Translate(&params, *in, nil)
+	_ = utils.MorphFrom(&params, *in, nil)
 	data, tot, err := s.ToggleService.DoListStrayToggles(ctx, params)
 	if err != nil {
 		err = fmt.Errorf("service failure: %w", err)
@@ -66,7 +66,7 @@ func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out
 	resp := &RespListStrayToggles{Items: []ToggleStatLog{}, Total: tot}
 	for _, d := range data {
 		val := ToggleStatLog{}
-		utils.Translate(&val, d, nil)
+		utils.MorphFrom(&val, d, nil)
 		if d.LastAccessedAt.IsZero() {
 			val.LastAccessedAt = null.Time{}
 		}
@@ -85,7 +85,7 @@ func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err
 	ctx := r.Context()
 	data, err := s.ToggleService.DoGetToggle(ctx, in.ID)
 	if errors.Is(err, servicetoggle.ErrNotFound) {
-		err = RespErrorPresets[ErrDataNotFound]
+		err = RespErrorPresets[ErrNotFound]
 		return
 	}
 	if err != nil {
@@ -94,7 +94,7 @@ func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err
 	}
 
 	resp := ToggleWithDetail{}
-	utils.Translate(&resp, data, nil)
+	utils.MorphFrom(&resp, data, nil)
 	if data.LastAccessedAt.IsZero() {
 		resp.LastAccessedAt = null.Time{}
 	}
@@ -102,6 +102,7 @@ func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err
 }
 
 func (s *Handler) CreateToggle(r *http.Request, in *Toggle, out *Toggle) (err error) {
+	in.UpdatedAt = time.Now()
 	if err = validator.Validate(in); err != nil {
 		err = fmt.Errorf("bad request: %w", err)
 		return
@@ -119,13 +120,15 @@ func (s *Handler) CreateToggle(r *http.Request, in *Toggle, out *Toggle) (err er
 }
 
 func (s *Handler) UpdateToggle(r *http.Request, in *ReqUpdateToggle, out *Toggle) (err error) {
+	in.Data.ID = in.ID
+	in.Data.UpdatedAt = time.Now()
 	if err = validator.Validate(in); err != nil {
 		err = fmt.Errorf("bad request: %w", err)
 		return
 	}
 
 	ctx := r.Context()
-	data, err := s.ToggleService.DoUpdateToggle(ctx, in.ID)
+	data, err := s.ToggleService.DoUpdateToggle(ctx, in.ID, domaintoggle.Toggle(in.Data))
 	if err != nil {
 		err = fmt.Errorf("service failure: %w", err)
 		return
@@ -144,7 +147,7 @@ func (s *Handler) RemoveToggle(r *http.Request, in *ReqRemoveToggle, out *Toggle
 	ctx := r.Context()
 	data, err := s.ToggleService.DoRemoveToggle(ctx, in.ID)
 	if errors.Is(err, servicetoggle.ErrNotFound) {
-		err = RespErrorPresets[ErrDataNotFound]
+		err = RespErrorPresets[ErrNotFound]
 		return
 	}
 	if err != nil {
@@ -165,7 +168,7 @@ func (s *Handler) StatToggle(r *http.Request, in *ReqStatToggle, out *ToggleComp
 	ctx := r.Context()
 	data, err := s.ToggleService.DoStatToggle(ctx, in.ID)
 	if errors.Is(err, servicetoggle.ErrNotFound) {
-		err = RespErrorPresets[ErrDataNotFound]
+		err = RespErrorPresets[ErrNotFound]
 		return
 	}
 	if err != nil {

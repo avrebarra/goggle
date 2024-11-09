@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	ErrNotFound = fmt.Errorf("not found")
+	ErrNotFound      = fmt.Errorf("not found")
+	ErrAlreadyExists = fmt.Errorf("already exists")
 )
 
 type Service interface {
@@ -18,7 +19,7 @@ type Service interface {
 	DoListStrayToggles(ctx context.Context, in ParamsDoListStrayToggles) (out []domaintoggle.ToggleWithDetail, total int64, err error)
 	DoGetToggle(ctx context.Context, id string) (out domaintoggle.ToggleWithDetail, err error)
 	DoCreateToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error)
-	DoUpdateToggle(ctx context.Context, id string) (out domaintoggle.Toggle, err error)
+	DoUpdateToggle(ctx context.Context, id string, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error)
 	DoRemoveToggle(ctx context.Context, id string) (out domaintoggle.Toggle, err error)
 	DoStatToggle(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error)
 }

@@ -51,6 +51,7 @@ func (e *Runtime) Run() (err error) {
 	s.RegisterService(&server, "GoggleRPC")
 
 	r := mux.NewRouter()
+	r.Use(MWContextSetup())
 	r.Use(MWRecoverer())
 	r.Handle("/", s)
 

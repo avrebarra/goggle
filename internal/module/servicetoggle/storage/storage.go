@@ -18,6 +18,7 @@ type Storage interface {
 	ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error)
 	FetchToggleStatByID(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error)
 	RemoveTogglesByIDs(ctx context.Context, ids []string) (err error)
+	UpsertToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error)
 }
 
 type ParamsFetchPaged struct {

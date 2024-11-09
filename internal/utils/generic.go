@@ -13,7 +13,7 @@ func ApplyDefaults[T any](targ, defs *T) {
 	_ = copier.Copy(targ, &tmp)
 }
 
-func Translate[T any](targ *T, vals any, supplements *T) (err error) {
+func MorphFrom[T any](targ *T, vals any, supplements *T) (err error) {
 	if err = copier.Copy(targ, vals); err != nil {
 		err = fmt.Errorf("failed to compose: %w", err)
 		return

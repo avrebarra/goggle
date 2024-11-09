@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/avrebarra/goggle/internal/module/serviceaccesslog"
+	storageaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/storage"
 	storagetoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/storage"
 
 	"github.com/avrebarra/goggle/internal/core/runtime/rpcserver"
@@ -111,8 +113,17 @@ func ConstructDeps(conf *BaseConfig) *BaseDeps {
 	togglestore, err := storagetoggle.NewStorageSQLite(storagetoggle.ConfigStorageSQLite{DB: db})
 	check(err, "store/toggle")
 
+	accesslogstore, err := storageaccesslog.NewStorageSQLite(storageaccesslog.ConfigStorageSQLite{DB: db})
+	check(err, "store/accesslog")
+
+	accesslogsvc, err := serviceaccesslog.NewService(serviceaccesslog.ServiceConfig{
+		AccessLogStore: accesslogstore,
+	})
+	check(err, "service/accesslog")
+
 	togglesvc, err := servicetoggle.NewService(servicetoggle.ServiceConfig{
-		ToggleStore: togglestore,
+		ToggleStore:      togglestore,
+		AccessLogService: accesslogsvc,
 	})
 	check(err, "service/toggle")
 

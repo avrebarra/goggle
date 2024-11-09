@@ -60,7 +60,7 @@ func main() {
 }
 
 func DoBasic(ctx context.Context, name string, shouldPass bool) (err error) {
-	saga := ctxsaga.GetSaga(ctx)
+	saga, _ := ctxsaga.GetSaga(ctx)
 
 	dur := rand.Intn(5) + 1
 
@@ -80,7 +80,7 @@ func DoBasic(ctx context.Context, name string, shouldPass bool) (err error) {
 }
 
 func DoWithCommit(ctx context.Context, name string, shouldPass bool) (err error) {
-	saga := ctxsaga.GetSaga(ctx)
+	saga, _ := ctxsaga.GetSaga(ctx)
 
 	dur := rand.Intn(5) + 1
 

@@ -9,9 +9,11 @@ import (
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
 
 	"github.com/avrebarra/goggle/internal/utils"
+	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/guregu/null/v5"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -98,11 +100,15 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 
 	out = []domaintoggle.ToggleWithDetail{}
 	for _, d := range data {
-		t, _ := time.Parse(time.DateTime, d.LastAccessedAt.String)
-
 		val := domaintoggle.ToggleWithDetail{}
-		utils.Translate(&val, &d, &domaintoggle.ToggleWithDetail{LastAccessedAt: t})
-
+		if d.LastAccessedAt.Valid {
+			t, err := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			val.LastAccessedAt = t
+		}
+		utils.MorphFrom(&val, &d, nil)
 		out = append(out, val)
 	}
 
@@ -117,9 +123,9 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 	}
 
 	type ResultData struct {
-		ID               string `gorm:"column:toggle_id"`
-		LastAccessedAt   string `gorm:"column:last_accessed_at"`
-		AccessFreqWeekly int    `gorm:"column:access_freq_weekly"`
+		ID               string      `gorm:"column:toggle_id"`
+		LastAccessedAt   null.String `gorm:"column:last_accessed_at"`
+		AccessFreqWeekly int         `gorm:"column:access_freq_weekly"`
 	}
 
 	// ***
@@ -158,13 +164,16 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 		return
 	}
 
-	out = []domaintoggle.ToggleWithDetail{}
 	for _, d := range data {
-		t, _ := time.Parse(time.DateTime, d.LastAccessedAt)
-
 		val := domaintoggle.ToggleWithDetail{}
-		utils.Translate(&val, &d, &domaintoggle.ToggleWithDetail{LastAccessedAt: t})
-
+		if d.LastAccessedAt.Valid {
+			t, err := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			val.LastAccessedAt = t
+		}
+		utils.MorphFrom(&val, &d, nil)
 		out = append(out, val)
 	}
 
@@ -197,13 +206,70 @@ func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out
 	return
 }
 
+func (s *StorageSQLite) UpsertToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
+	type ParamData struct {
+		ID        string    `gorm:"column:id" validate:"-"`
+		Status    bool      `gorm:"column:status" validate:"-"`
+		UpdatedAt time.Time `gorm:"column:updated_at" validate:"required"`
+	}
+
+	// ***
+
+	data := ParamData(in)
+	utils.ApplyDefaults(&data, &ParamData{UpdatedAt: time.Now(), Status: false})
+	if err = validator.Validate(data); err != nil {
+		err = fmt.Errorf("bad data: %w", err)
+		return
+	}
+	if data.ID != "" {
+		data.UpdatedAt = time.Now()
+	}
+
+	execer := s.DB
+
+	if saga, ok := ctxsaga.GetSaga(ctx); ok {
+		execer = s.DB.Begin()
+		defer func() {
+			saga.AddRollbackFx(func() error { return execer.Rollback().Error })
+			saga.AddCommitFx(func() error { return execer.Commit().Error })
+		}()
+	}
+
+	q := execer.Table(SQLiteTableToggles)
+	if data.ID != "" {
+		q = q.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"status", "updated_at"}),
+		})
+	}
+	q = q.Create(&in)
+	err = q.Error
+	if err != nil {
+		return
+	}
+
+	out = in
+	return
+}
+
 func (s *StorageSQLite) RemoveTogglesByIDs(ctx context.Context, ids []string) (err error) {
+	execer := s.DB
+
+	if saga, ok := ctxsaga.GetSaga(ctx); ok {
+		execer = s.DB.Begin()
+		defer func() {
+			saga.AddRollbackFx(func() error { return execer.Rollback().Error })
+			saga.AddCommitFx(func() error { return execer.Commit().Error })
+		}()
+	}
+
 	type ResultData struct{}
-	q := s.DB.Table(SQLiteTableToggles+" as tog").
+	q := execer.Table(SQLiteTableToggles+" as tog").
 		Delete(&ResultData{}, "tog.id IN (?)", ids)
 	err = q.Error
 	if err != nil {
 		return
 	}
+
 	return
 }

@@ -43,7 +43,8 @@ type ReqGetToggle struct {
 }
 
 type ReqUpdateToggle struct {
-	ID string `json:"id"`
+	ID   string `json:"id"`
+	Data Toggle `json:"data"`
 }
 
 type ReqRemoveToggle struct {

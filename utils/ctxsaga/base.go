@@ -15,13 +15,11 @@ func CreateSaga(ctx context.Context) *SagaCenter {
 	return &sc
 }
 
-func GetSaga(ctx context.Context) *SagaCenter {
-	sc := ctxboard.GetData(ctx, keysaga)
-	if sc != nil {
-		return sc.(*SagaCenter)
+func GetSaga(ctx context.Context) (c *SagaCenter, ok bool) {
+	if sc := ctxboard.GetData(ctx, keysaga); sc != nil {
+		return sc.(*SagaCenter), true
 	}
-	CreateSaga(ctx)
-	return GetSaga(ctx)
+	return
 }
 
 // ***

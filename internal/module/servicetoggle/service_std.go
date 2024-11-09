@@ -5,17 +5,20 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/avrebarra/goggle/internal/module/serviceaccesslog"
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
 	storagetoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/storage"
 
 	"github.com/avrebarra/goggle/internal/utils"
+	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
 )
 
 var _ Service = (*ServiceStd)(nil)
 
 type ServiceConfig struct {
-	ToggleStore storagetoggle.Storage `validate:"required"`
+	ToggleStore      storagetoggle.Storage    `validate:"required"`
+	AccessLogService serviceaccesslog.Service `validate:"required"`
 }
 
 type ServiceStd struct {
@@ -83,16 +86,56 @@ func (s *ServiceStd) DoGetToggle(ctx context.Context, id string) (out domaintogg
 }
 
 func (s *ServiceStd) DoCreateToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
-	err = fmt.Errorf("not implemented")
+	data1, err := s.ToggleStore.FetchToggleStatByID(ctx, in.ID)
+	if errors.Is(err, storagetoggle.ErrStoreNotFound) {
+		err = nil // discard err
+	}
+	if err != nil {
+		err = fmt.Errorf("data fetching failed: %w", err)
+		return
+	}
+	if data1.ID != "" {
+		err = fmt.Errorf("%w: %s", ErrAlreadyExists, in.ID)
+		return
+	}
+
+	data2, err := s.ToggleStore.UpsertToggle(ctx, in)
+	if err != nil {
+		err = fmt.Errorf("insert failed: %w", err)
+		return
+	}
+
+	out = domaintoggle.Toggle{}
+	_ = utils.MorphFrom(&out, data2, nil)
 	return
 }
 
-func (s *ServiceStd) DoUpdateToggle(ctx context.Context, id string) (out domaintoggle.Toggle, err error) {
-	err = fmt.Errorf("not implemented")
+func (s *ServiceStd) DoUpdateToggle(ctx context.Context, id string, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
+	resp1, _, err := s.ToggleStore.FetchPaged(ctx, storagetoggle.ParamsFetchPaged{FilterIDs: []string{id}, SkipTotal: true})
+	if err != nil {
+		err = fmt.Errorf("data check failed: %w", err)
+		return
+	}
+	if len(resp1) == 0 {
+		err = fmt.Errorf("%w: %s", ErrNotFound, id)
+		return
+	}
+
+	in.ID = id
+	data, err := s.ToggleStore.UpsertToggle(ctx, in)
+	if err != nil {
+		err = fmt.Errorf("update failed: %w", err)
+		return
+	}
+
+	out = domaintoggle.Toggle{}
+	_ = utils.MorphFrom(&out, data, nil)
 	return
 }
 
 func (s *ServiceStd) DoRemoveToggle(ctx context.Context, id string) (out domaintoggle.Toggle, err error) {
+	saga := ctxsaga.CreateSaga(ctx)
+
 	resp1, _, err := s.ToggleStore.FetchPaged(ctx, storagetoggle.ParamsFetchPaged{FilterIDs: []string{id}, SkipTotal: true})
 	if err != nil {
 		err = fmt.Errorf("data check failed: %w", err)
@@ -104,17 +147,37 @@ func (s *ServiceStd) DoRemoveToggle(ctx context.Context, id string) (out domaint
 	}
 	data := resp1[0]
 
-	if err = s.ToggleStore.RemoveTogglesByIDs(ctx, []string{id}); err != nil {
-		err = fmt.Errorf("removal failed: %w", err)
+	err = func() (err error) {
+		if err = s.ToggleStore.RemoveTogglesByIDs(ctx, []string{id}); err != nil {
+			err = fmt.Errorf("removal failed: %w", err)
+			return
+		}
+		if err = s.AccessLogService.DeleteAccessLogByToggleID(ctx, id); err != nil {
+			err = fmt.Errorf("access log removal failed: %w", err)
+			return
+		}
+		return
+	}()
+	if err != nil {
+		if errRb := saga.Rollback(); errRb != nil {
+			err = fmt.Errorf("%w: rollback failed: %v", err, errRb)
+		}
+		return
+	}
+
+	if err = saga.Commit(); err != nil {
+		err = fmt.Errorf("atomic ops committing failed: %w", err)
 		return
 	}
 
 	out = domaintoggle.Toggle{}
-	_ = utils.Translate(&out, data, nil)
+	_ = utils.MorphFrom(&out, data, nil)
 	return
 }
 
 func (s *ServiceStd) DoStatToggle(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error) {
+	_ = s.AccessLogService.AddAccessLog(ctx, id)
+
 	resp, err := s.ToggleStore.FetchToggleStatByID(ctx, id)
 	if errors.Is(err, storagetoggle.ErrStoreNotFound) {
 		err = fmt.Errorf("%w: %s", ErrNotFound, id)

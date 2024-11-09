@@ -5,8 +5,19 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/avrebarra/goggle/utils/ctxboard"
 	"github.com/gorilla/mux"
 )
+
+func MWContextSetup() mux.MiddlewareFunc {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			ctx = ctxboard.CreateWith(ctx)
+			h.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
 
 func MWRecoverer() mux.MiddlewareFunc {
 	return func(h http.Handler) http.Handler {
