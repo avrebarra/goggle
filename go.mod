@@ -1,6 +1,6 @@
 module github.com/avrebarra/goggle
 
-go 1.21.4
+go 1.22.0
 
 toolchain go1.22.5
 
@@ -13,6 +13,7 @@ require (
 	github.com/guregu/null/v5 v5.0.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/leaanthony/clir v1.7.0
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12
 )

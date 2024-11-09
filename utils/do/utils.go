@@ -2,20 +2,36 @@ package do
 
 import "fmt"
 
-func JoinErrors(errs []error) (err error) {
-	if len(errs) == 0 {
-		return
-	}
+type JointError struct {
+	Errors []error
+}
+
+func (e JointError) Error() string {
 	msg := ""
-	for _, err := range errs {
+	for _, err := range e.Errors {
 		if err == nil {
 			continue
 		}
 		msg += err.Error() + "; "
 	}
 	if msg == "" {
-		return nil
+		return ""
 	}
 	msg = msg[:len(msg)-2]
-	return fmt.Errorf(msg)
+	msg = fmt.Sprintf("%d joint error: %s", len(e.Errors), msg)
+	return msg
+}
+
+func JoinErrors(errs []error) (err error) {
+	je := JointError{Errors: []error{}}
+	for _, v := range errs {
+		if v != nil {
+			je.Errors = append(je.Errors, v)
+		}
+	}
+	if len(je.Errors) == 0 {
+		return nil
+	}
+	err = je
+	return
 }

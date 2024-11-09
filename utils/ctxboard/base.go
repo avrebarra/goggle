@@ -28,3 +28,14 @@ func ExtractFrom(ctx context.Context) (ctxdata *ContextBoard, ok bool) {
 	}
 	return
 }
+
+func SetData(ctx context.Context, key string, val interface{}) {
+	c, _ := ExtractFrom(ctx)
+	c.data.Store(key, val)
+}
+
+func GetData(ctx context.Context, key string) (val interface{}) {
+	c, _ := ExtractFrom(ctx)
+	val, _ = c.data.Load(key)
+	return
+}

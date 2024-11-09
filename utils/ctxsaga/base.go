@@ -1,26 +1,25 @@
-package ctxboard
+package ctxsaga
 
 import (
 	"context"
 	"sync"
+
+	"github.com/avrebarra/goggle/utils/ctxboard"
 )
 
 var keysaga = "!ctxwall/saga"
 
 func CreateSaga(ctx context.Context) *SagaCenter {
-	c, _ := ExtractFrom(ctx)
 	sc := SagaCenter{rollbackfxs: &sync.Map{}, commitfxs: &sync.Map{}}
-	c.data.Store(keysaga, &sc)
+	ctxboard.SetData(ctx, keysaga, &sc)
 	return &sc
 }
 
 func GetSaga(ctx context.Context) *SagaCenter {
-	c, _ := ExtractFrom(ctx)
-	sc, ok := c.data.Load(keysaga)
-	if ok {
+	sc := ctxboard.GetData(ctx, keysaga)
+	if sc != nil {
 		return sc.(*SagaCenter)
 	}
-
 	CreateSaga(ctx)
 	return GetSaga(ctx)
 }
@@ -65,5 +64,12 @@ func (s *SagaCenter) Rollback() (err error) {
 			}
 		}
 	}
+	return
+}
+
+// ***
+
+func countmap(m *sync.Map) (out int) {
+	m.Range(func(_, _ any) bool { out++; return true })
 	return
 }
