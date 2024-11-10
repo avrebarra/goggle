@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"encoding/json"
+
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 )
@@ -22,6 +24,28 @@ func MorphFrom[T any](targ *T, vals any, supplements *T) (err error) {
 			err = errors.Wrap(err, "failed to supplement")
 			return
 		}
+	}
+	return
+}
+
+func UnmarshalToMap(bytes []byte) (m map[string]interface{}) {
+	m = map[string]interface{}{}
+	err := json.Unmarshal(bytes, &m)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func RemarshalToMap(i interface{}) (m map[string]interface{}) {
+	m = map[string]interface{}{}
+	bytes, err := json.Marshal(i)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(bytes, &m)
+	if err != nil {
+		return
 	}
 	return
 }
