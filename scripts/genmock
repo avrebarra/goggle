@@ -1,0 +1,95 @@
+#!/usr/bin/env ruby
+MAGIC_COMMENT = '// mockable:true'
+
+def read_file(file_path)
+  File.read(file_path)
+end
+
+def list_files(dir, dive: false)
+  pattern = dive ? "#{dir}/**/*" : "#{dir}/*"
+  Dir.glob(pattern)
+end
+
+def list_dirs(dir, dive: false)
+  pattern = dive ? "#{dir}/**/" : "#{dir}/*/"
+  Dir.glob(pattern).select { |f| File.directory?(f) }
+end
+
+def exec_moq(out_path, out_pkg, interface_names, working_dir: '')
+  cmd = "moq -stub -out #{out_path} -pkg #{out_pkg} . #{interface_names.join(' ')}"
+  Dir.chdir(working_dir) unless working_dir.empty?
+  system(cmd)
+end
+
+def get_package_name(file_path)
+  if File.extname(file_path) != ".go"
+    raise "Error: Only .go files are supported"
+  end
+
+  package = ''
+  content = read_file(file_path)
+  content.each_line.with_index do |line, index|
+    next unless line.strip.start_with?("package ")
+    next if line.strip.end_with?("_test")
+    package = line.split('package ')[1].strip
+  end
+
+  package
+end
+
+def scan_file(file_path)
+  if File.extname(file_path) != ".go"
+    raise "Error: Only .go files are supported"
+  end
+
+  content = read_file(file_path)
+  targ_interfaces = []
+  content.each_line.with_index do |line, index|
+    next unless line.strip.start_with?(MAGIC_COMMENT)
+    next_line = content.lines.to_a[index + 1]
+    next unless next_line.strip.start_with?('type') && next_line.include?('interface')
+    interface_name = next_line.split(' ')[1]
+    targ_interfaces << interface_name
+  end
+  targ_interfaces
+end
+
+def main
+  abort "Error: Directory path is required" if ARGV.empty?
+
+  dir_path = File.expand_path(ARGV[0])
+  abort "Directory not found: #{dir_path}" unless Dir.exist?(dir_path)
+
+  # check if moq is installed
+  unless system('which moq &>/dev/null')
+    abort "Error: 'moq' command is not installed. Please install it and try again."
+  end
+
+  # run for each directory
+  dirs = list_dirs(dir_path, dive: true)
+  dirs.each do |dir|
+    files = list_files(dir)
+
+    # scan for target interfaces
+    go_files = []
+    targ_interfaces = []
+    files.each do |file|
+      next unless file.strip.end_with?('.go')
+      go_files << file
+      targ_interfaces += scan_file(file)
+    end
+
+    next unless targ_interfaces.any?
+
+    # generate mock files
+    package_name = get_package_name(go_files[0])
+    mock_file = "mocks_test.go"
+    mock_package = "#{package_name}_test"
+
+    puts "generating for #{package_name}: #{targ_interfaces.join(', ')}"
+    exec_moq(mock_file, mock_package, targ_interfaces, working_dir: dir)
+  end
+end
+
+main if __FILE__ == $0
+
