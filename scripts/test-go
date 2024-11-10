@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+$CWD = ARGV[0] || Dir.pwd
+
+MINIMUM_COVERAGE = 80.0
+IGNORE_LIST = [
+  '/cmd',
+  '/ui',
+  '/bp_',
+  '/runtime.go',
+  '/faker.go',
+].freeze
+
+def exec_golist
+  Dir.chdir($CWD) do
+    `go list ./...`.split("\n")
+  end
+end
+
+def filter_file_lines(file_path, &filter_func)
+  lines = File.readlines(file_path)
+  filtered_lines = lines.select(&filter_func)
+  File.open(file_path, 'w') do |file|
+    file.puts(filtered_lines)
+  end
+end
+
+def exec_gotest(packages, strict: false)
+  Dir.chdir($CWD) do
+    result = system "go test -coverprofile=coverage.out #{packages.join(' ')}"
+    abort "Tests failed" if !result && strict
+
+    filter_file_lines('coverage.out') do |line|
+      IGNORE_LIST.none? { |ignore_str| line.include?(ignore_str) }
+    end
+
+    coverage_output = `go tool cover -func=coverage.out`
+    lines = coverage_output.split("\n")
+    last_line = lines.last
+    match = last_line.match(/total:.+?\(statements\)\s+(.+)%/)
+    coverage = match[1] if match
+    puts coverage_output
+
+    puts "Coverage score: #{coverage}%"
+    if strict
+      if coverage.to_f < MINIMUM_COVERAGE
+        abort "Coverage score is too low, minimum required: #{MINIMUM_COVERAGE}%"
+      end
+      puts "Coverage score check passed!"
+    end
+  end
+end
+
+def main
+  options = {}
+  OptionParser.new do |opts|
+    opts.on("-s", "--strict", "Set to fail on check failures") { options[:strict] = true }
+  end.parse!
+
+  list = exec_golist
+  exec_gotest(list, strict: options[:strict])
+end
+
+main if __FILE__ == $0
+

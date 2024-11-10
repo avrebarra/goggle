@@ -7,18 +7,20 @@ type JointError struct {
 }
 
 func (e JointError) Error() string {
+	count := 0
 	msg := ""
 	for _, err := range e.Errors {
 		if err == nil {
 			continue
 		}
 		msg += err.Error() + "; "
+		count++
 	}
 	if msg == "" {
-		return ""
+		return "empty error"
 	}
 	msg = msg[:len(msg)-2]
-	msg = fmt.Sprintf("%d joint error: %s", len(e.Errors), msg)
+	msg = fmt.Sprintf("%d joint error: %s", count, msg)
 	return msg
 }
 

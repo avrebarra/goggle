@@ -1,9 +1,9 @@
-package storage
+package storeaccesslog
 
 import (
 	"context"
 
-	domainaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/domain"
+	"github.com/avrebarra/goggle/internal/module/serviceaccesslog/domainaccesslog"
 	"github.com/pkg/errors"
 )
 

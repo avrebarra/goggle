@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	domainaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/domain"
-	storageaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/storage"
+	"github.com/avrebarra/goggle/internal/module/serviceaccesslog/domainaccesslog"
+	storeaccesslogaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/storeaccesslog"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/pkg/errors"
 )
@@ -13,7 +13,7 @@ import (
 var _ Service = (*ServiceStd)(nil)
 
 type ServiceConfig struct {
-	AccessLogStore storageaccesslog.Storage `validate:"required"`
+	AccessLogStore storeaccesslogaccesslog.Storage `validate:"required"`
 }
 
 type ServiceStd struct {
@@ -34,7 +34,7 @@ func (s *ServiceStd) DoListLogs(ctx context.Context, in ParamsDoListLogs) (out [
 		return
 	}
 
-	resp, tot, err := s.AccessLogStore.FetchPaged(ctx, storageaccesslog.ParamsFetchPaged(in))
+	resp, tot, err := s.AccessLogStore.FetchPaged(ctx, storeaccesslogaccesslog.ParamsFetchPaged(in))
 	if err != nil {
 		err = errors.Wrap(err, "paged fetch failed")
 		return

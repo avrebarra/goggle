@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'optparse'
+
+def transform_pretty_print(log, options)
+  if system('which jq &>/dev/null')
+    `echo '#{log.chomp}' | jq --color-output .`
+  else
+    JSON.pretty_generate(JSON.parse(log))
+  end
+rescue JSON::ParserError => e
+  warn "Failed to parse JSON: #{e.message}"
+  log
+end
+
+def transform_plain(log, options)
+  log
+end
+
+def load_module(path)
+  load path
+  true
+rescue
+  false
+end
+
+def main
+  transformers = {
+    'prettyprint' => method(:transform_pretty_print),
+    'plain' => method(:transform_plain),
+  }
+  
+  options = {}
+  OptionParser.new do |opts|
+  opts.banner = "Usage: logform [options]"
+  opts.on("-f", "--filter FILTER_NAME", "Specify the filter. Available filters: prettyprint/plain/FILE_PATH -- To specify custom transformer, provide path to .rb file with `def transform(log, options)`") do |transform|
+      options[:transform] = transform || 'plain'
+  end
+  opts.on("-p", "--pretty", "Enable JSON pretty print. Equivalent to '-f prettyprint'") do
+      options[:transform] = 'prettyprint'
+  end
+  opts.on("-h", "--help", "Prints this help") do
+      puts opts
+      exit
+  end
+  end.parse!
+  
+  # deduce mode
+  mode = options[:transform]
+  if transformers.key?(mode)
+  elsif load_module(mode)
+    transformers['transform_file'] = method(:transform)
+    mode = 'transform_file'
+  else
+    mode = 'plain'
+  end
+  
+  # exec piping
+  log = ''
+  while (line = STDIN.gets) do
+    log += line
+    if line =~ /\n\z/
+      out = transformers[mode].call(log, options)
+      $stdout.write(out.chomp + "\n") if out
+      $stdout.flush
+      log = ''
+    end
+  end
+end
+
+main if __FILE__ == $0

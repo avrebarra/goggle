@@ -1,10 +1,10 @@
-package storage
+package storetoggle
 
 import (
 	"context"
 	"time"
 
-	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domaintoggle"
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
@@ -52,9 +52,6 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 		LastAccessedAt   null.String `gorm:"column:last_accessed_at"`
 		AccessFreqWeekly int         `gorm:"column:access_freq_weekly"`
 	}
-
-	err = errors.New("not implemented")
-	return
 
 	// ***
 

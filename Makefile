@@ -4,8 +4,18 @@ build-ui:
 build-go:
 	go build -o bin/goggle .
 
-generate_mock:
-	./scripts/genmock .
+test-go:
+	@./scripts/test-go . --strict
+
+test-go-cover:
+	@./scripts/test-go .
+	@go tool cover -html=coverage.out
+
+generate-mock:
+	@./scripts/genmock .
 
 build: build-ui build-go
+
+watch:
+	@gow run ./cmd/goggle | ./scripts/logform -p
 

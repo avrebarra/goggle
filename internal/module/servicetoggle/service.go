@@ -3,7 +3,7 @@ package servicetoggle
 import (
 	"context"
 
-	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domaintoggle"
 	"github.com/pkg/errors"
 
 	"github.com/guregu/null/v5"
@@ -14,6 +14,7 @@ var (
 	ErrAlreadyExists = errors.Errorf("already exists")
 )
 
+// mockable:true
 type Service interface {
 	DoListToggles(ctx context.Context, in ParamsDoListToggles) (out []domaintoggle.ToggleWithDetail, total int64, err error)
 	DoListStrayToggles(ctx context.Context, in ParamsDoListStrayToggles) (out []domaintoggle.ToggleWithDetail, total int64, err error)
@@ -25,8 +26,8 @@ type Service interface {
 }
 
 type ParamsDoListToggles struct {
-	Offset    int
-	Limit     int
+	Offset    int `validate:"min=0"`
+	Limit     int `validate:"min=0,max=100"`
 	SortBy    string
 	SortOrder string
 

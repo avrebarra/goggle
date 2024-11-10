@@ -1,10 +1,10 @@
-package storage
+package storeaccesslog
 
 import (
 	"context"
 	"time"
 
-	domainaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/domain"
+	"github.com/avrebarra/goggle/internal/module/serviceaccesslog/domainaccesslog"
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
@@ -36,29 +36,24 @@ func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
 }
 
 func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domainaccesslog.AccessLog, total int64, err error) {
+
+	type ResultData struct {
+		ID        int    `gorm:"column:id"`
+		ToggleID  string `gorm:"column:toggle_id"`
+		CreatedAt string `gorm:"column:created_at"`
+	}
+
+	// ***
+
 	utils.ApplyDefaults(&in, &ParamsFetchPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
 		err = errors.Wrap(err, "bad params")
 		return
 	}
 
-	type ResultData struct {
-		ID        int       `gorm:"column:id"`
-		ToggleID  string    `gorm:"column:toggle_id"`
-		CreatedAt time.Time `gorm:"column:created_at"`
-	}
-
-	// ***
-
-	if err = validator.Validate(&in); err != nil {
-		err = errors.Wrap(err, "bad params")
-		return
-	}
-
 	data := []ResultData{}
 	q := s.DB.Table(SQLiteTableAccessLogs + " as log").
-		Select("id, toggle_id, created_at").
-		Order(in.SortBy + " " + in.SortOrder)
+		Select("id, toggle_id, created_at")
 	if in.FilterToggleIDs != nil {
 		q = q.Where("log.toggle_id IN ?", in.FilterToggleIDs)
 	}
@@ -67,6 +62,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 	}
 	q = q.Limit(in.Limit).
 		Offset(in.Offset).
+		Order(in.SortBy + " " + in.SortOrder).
 		Find(&data)
 	if err = q.Error; err != nil {
 		err = errors.Wrap(err, "db fetch failed")
@@ -75,7 +71,12 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 
 	out = []domainaccesslog.AccessLog{}
 	for _, d := range data {
-		val := domainaccesslog.AccessLog(d)
+		val := domainaccesslog.AccessLog{}
+
+		t, _ := time.Parse(time.DateTime+"-07:00", d.CreatedAt)
+		val.CreatedAt = t
+
+		utils.MorphFrom(&val, &d, nil)
 		out = append(out, val)
 	}
 

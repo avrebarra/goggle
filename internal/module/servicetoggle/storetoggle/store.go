@@ -1,9 +1,9 @@
-package storage
+package storetoggle
 
 import (
 	"context"
 
-	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domaintoggle"
 	"github.com/guregu/null/v5"
 	"github.com/pkg/errors"
 )

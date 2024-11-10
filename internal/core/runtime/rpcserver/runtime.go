@@ -14,11 +14,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+// mockable:true
+type ToggleService servicetoggle.Service
+
 type ConfigRuntime struct {
-	Version       string                `validate:"required"`
-	Port          int                   `validate:"required"`
-	ToggleService servicetoggle.Service `validate:"required"`
-	StartedAt     time.Time             `validate:"required"`
+	Version       string        `validate:"required"`
+	Port          int           `validate:"required"`
+	ToggleService ToggleService `validate:"required"`
+	StartedAt     time.Time     `validate:"required"`
 }
 
 type Runtime struct {
@@ -53,6 +56,7 @@ func (e *Runtime) Run() (err error) {
 
 	r := mux.NewRouter()
 	r.Use(MWContextSetup())
+	r.Use(MWRequestLogger())
 	r.Use(MWRecoverer())
 	r.Handle("/", s)
 

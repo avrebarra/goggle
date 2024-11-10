@@ -5,6 +5,9 @@ go 1.22.0
 toolchain go1.22.5
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/brianvoe/gofakeit/v7 v7.1.2
+	github.com/caarlos0/env/v11 v11.2.2
 	github.com/gin-gonic/contrib v0.0.0-20201101042839-6a891bf89f19
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.1
@@ -12,14 +15,19 @@ require (
 	github.com/gorilla/rpc v1.2.1
 	github.com/guregu/null/v5 v5.0.0
 	github.com/jinzhu/copier v0.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/leaanthony/clir v1.7.0
 	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.8.4
+	github.com/tidwall/gjson v1.18.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
@@ -32,7 +40,9 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 // indirect
 	golang.org/x/sys v0.5.0 // indirect

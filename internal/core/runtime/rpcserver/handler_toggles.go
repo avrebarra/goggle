@@ -4,22 +4,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pkg/errors"
-
-	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
-
 	"github.com/avrebarra/goggle/internal/module/servicetoggle"
+	"github.com/avrebarra/goggle/internal/module/servicetoggle/domaintoggle"
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/guregu/null/v5"
 	"github.com/jinzhu/copier"
+	"github.com/pkg/errors"
 )
-
-type Handler struct {
-	ConfigRuntime
-}
-
-// func (s *Server) Sample(r *http.Request, in *ReqPing, out *RespPing) (err error) { return nil }
 
 func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespListToggles) (err error) {
 	if err = validator.Validate(in); err != nil {
@@ -177,14 +169,5 @@ func (s *Handler) StatToggle(r *http.Request, in *ReqStatToggle, out *ToggleComp
 	}
 
 	resp := ToggleCompact(data)
-	return copier.Copy(out, resp)
-}
-
-func (s *Handler) Ping(r *http.Request, in *ReqPing, out *RespPing) (err error) {
-	resp := RespPing{
-		Version:   s.Version,
-		StartedAt: s.StartedAt,
-		Uptime:    time.Since(s.StartedAt).Round(time.Second).String(),
-	}
 	return copier.Copy(out, resp)
 }

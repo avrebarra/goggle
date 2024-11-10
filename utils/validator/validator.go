@@ -46,7 +46,7 @@ func (v Validator) Validate(in interface{}) (err error) {
 	// build validation error
 	ve := ValidationError{
 		root:         err.(validator.ValidationErrors),
-		targtype:     reflect.TypeOf(in).Elem(),
+		targtype:     reflect.ValueOf(in).Type(),
 		ErrorEntries: []ValidationErrorEntry{},
 	}
 
@@ -78,9 +78,11 @@ func (e ValidationError) Error() (out string) {
 	errstrs := []string{}
 	for _, errfield := range e.root {
 		fieldName := errfield.Field()
-		if f, ok := e.targtype.FieldByName(fieldName); ok {
-			if val := f.Tag.Get("alias"); val != "" {
-				fieldName = val
+		if e.targtype.Kind() == reflect.Struct {
+			if f, ok := e.targtype.FieldByName(fieldName); ok {
+				if val := f.Tag.Get("alias"); val != "" {
+					fieldName = val
+				}
 			}
 		}
 

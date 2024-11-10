@@ -1,4 +1,4 @@
-package domain
+package domaintoggle
 
 import (
 	"time"

@@ -6,6 +6,10 @@ import (
 	"github.com/guregu/null/v5"
 )
 
+type Handler struct {
+	ConfigRuntime
+}
+
 // request & responses
 
 type ReqPing struct{}
@@ -16,8 +20,8 @@ type RespPing struct {
 }
 
 type ReqListToggles struct {
-	Offset         int       `json:"offset"`
-	Limit          int       `json:"limit"`
+	Offset         int       `json:"offset" validate:"min=0"`
+	Limit          int       `json:"limit" validate:"min=0,max=100"`
 	SortBy         string    `json:"sortBy"`
 	SortOrder      string    `json:"sortOrder"`
 	FilterAccessed null.Bool `json:"filterAccessed"`

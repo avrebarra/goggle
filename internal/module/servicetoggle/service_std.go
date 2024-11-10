@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/avrebarra/goggle/internal/module/serviceaccesslog"
-	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
-	storagetoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/storage"
+	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domaintoggle"
+	storagetoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/storetoggle"
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
@@ -14,9 +14,13 @@ import (
 
 var _ Service = (*ServiceStd)(nil)
 
+// mockable:true
+type StorageToggle storagetoggle.Storage
+type ServiceAccessLog serviceaccesslog.Service
+
 type ServiceConfig struct {
-	ToggleStore      storagetoggle.Storage    `validate:"required"`
-	AccessLogService serviceaccesslog.Service `validate:"required"`
+	ToggleStore      StorageToggle    `validate:"required"`
+	AccessLogService ServiceAccessLog `validate:"required"`
 }
 
 type ServiceStd struct {
@@ -75,7 +79,7 @@ func (s *ServiceStd) DoGetToggle(ctx context.Context, id string) (out domaintogg
 		return
 	}
 	if len(resp) == 0 {
-		err = errors.Errorf("%w: %s", ErrNotFound, id)
+		err = errors.Wrapf(ErrNotFound, "cannot find by id: %s", id)
 		return
 	}
 
@@ -93,7 +97,7 @@ func (s *ServiceStd) DoCreateToggle(ctx context.Context, in domaintoggle.Toggle)
 		return
 	}
 	if data1.ID != "" {
-		err = errors.Errorf("%w: %s", ErrAlreadyExists, in.ID)
+		err = errors.Wrapf(ErrAlreadyExists, "resource exists: %s", in.ID)
 		return
 	}
 
@@ -115,7 +119,7 @@ func (s *ServiceStd) DoUpdateToggle(ctx context.Context, id string, in domaintog
 		return
 	}
 	if len(resp1) == 0 {
-		err = errors.Errorf("%w: %s", ErrNotFound, id)
+		err = errors.Wrapf(ErrNotFound, "resource not found: %s", in.ID)
 		return
 	}
 
@@ -140,7 +144,7 @@ func (s *ServiceStd) DoRemoveToggle(ctx context.Context, id string) (out domaint
 		return
 	}
 	if len(resp1) == 0 {
-		err = errors.Errorf("%w: %s", ErrNotFound, id)
+		err = errors.Wrapf(ErrNotFound, "resource not found: %s", id)
 		return
 	}
 	data := resp1[0]
@@ -158,7 +162,7 @@ func (s *ServiceStd) DoRemoveToggle(ctx context.Context, id string) (out domaint
 	}()
 	if err != nil {
 		if errRb := saga.Rollback(); errRb != nil {
-			err = errors.Errorf("%w: rollback failed: %v", err, errRb)
+			err = errors.Wrapf(err, "rollback failed: %s", errRb.Error())
 		}
 		return
 	}
@@ -178,7 +182,7 @@ func (s *ServiceStd) DoStatToggle(ctx context.Context, id string) (out domaintog
 
 	resp, err := s.ToggleStore.FetchToggleStatByID(ctx, id)
 	if errors.Is(err, storagetoggle.ErrStoreNotFound) {
-		err = errors.Errorf("%w: %s", ErrNotFound, id)
+		err = errors.Wrapf(ErrNotFound, "resource not found: %s", id)
 		return
 	}
 	if err != nil {
