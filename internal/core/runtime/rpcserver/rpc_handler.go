@@ -1,10 +1,10 @@
 package rpcserver
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/pkg/errors"
 
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
 
@@ -23,7 +23,7 @@ type Handler struct {
 
 func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespListToggles) (err error) {
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
@@ -32,7 +32,7 @@ func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespList
 	_ = utils.MorphFrom(&params, *in, nil)
 	data, tot, err := s.ToggleService.DoListToggles(ctx, params)
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 
@@ -50,7 +50,7 @@ func (s *Handler) ListToggles(r *http.Request, in *ReqListToggles, out *RespList
 
 func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out *RespListStrayToggles) (err error) {
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
@@ -59,7 +59,7 @@ func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out
 	_ = utils.MorphFrom(&params, *in, nil)
 	data, tot, err := s.ToggleService.DoListStrayToggles(ctx, params)
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 
@@ -78,7 +78,7 @@ func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out
 
 func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err error) {
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
@@ -89,7 +89,7 @@ func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 
@@ -104,14 +104,14 @@ func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err
 func (s *Handler) CreateToggle(r *http.Request, in *Toggle, out *Toggle) (err error) {
 	in.UpdatedAt = time.Now()
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
 	ctx := r.Context()
 	data, err := s.ToggleService.DoCreateToggle(ctx, domaintoggle.Toggle(*in))
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 
@@ -123,14 +123,14 @@ func (s *Handler) UpdateToggle(r *http.Request, in *ReqUpdateToggle, out *Toggle
 	in.Data.ID = in.ID
 	in.Data.UpdatedAt = time.Now()
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
 	ctx := r.Context()
 	data, err := s.ToggleService.DoUpdateToggle(ctx, in.ID, domaintoggle.Toggle(in.Data))
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (s *Handler) UpdateToggle(r *http.Request, in *ReqUpdateToggle, out *Toggle
 
 func (s *Handler) RemoveToggle(r *http.Request, in *ReqRemoveToggle, out *Toggle) (err error) {
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
@@ -151,7 +151,7 @@ func (s *Handler) RemoveToggle(r *http.Request, in *ReqRemoveToggle, out *Toggle
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 
@@ -161,7 +161,7 @@ func (s *Handler) RemoveToggle(r *http.Request, in *ReqRemoveToggle, out *Toggle
 
 func (s *Handler) StatToggle(r *http.Request, in *ReqStatToggle, out *ToggleCompact) (err error) {
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad request: %w", err)
+		err = errors.Wrap(err, "bad request")
 		return
 	}
 
@@ -172,7 +172,7 @@ func (s *Handler) StatToggle(r *http.Request, in *ReqStatToggle, out *ToggleComp
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("service failure: %w", err)
+		err = errors.Wrap(err, "service failure")
 		return
 	}
 

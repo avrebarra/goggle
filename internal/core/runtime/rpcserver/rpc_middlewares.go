@@ -2,11 +2,11 @@ package rpcserver
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/avrebarra/goggle/utils/ctxboard"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 func MWContextSetup() mux.MiddlewareFunc {
@@ -25,7 +25,7 @@ func MWRecoverer() mux.MiddlewareFunc {
 			defer func() {
 				r := recover()
 				if r != nil {
-					err := fmt.Errorf("panic: %v", r)
+					err := errors.Errorf("panic: %v", r)
 					errid := json.RawMessage([]byte(`-1`))
 					resp := &ServerResponse{ID: &errid, Error: RespErrorPresets[ErrUnexpected].WithMessage(err.Error())}
 					w.Header().Set("Content-Type", "application/json; charset=utf-8")

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -11,6 +10,7 @@ import (
 	"github.com/avrebarra/goggle/internal/module/serviceaccesslog"
 	storageaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/storage"
 	storagetoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/storage"
+	"github.com/pkg/errors"
 
 	"github.com/avrebarra/goggle/internal/core/runtime/rpcserver"
 	"github.com/avrebarra/goggle/internal/core/runtime/uiserver"
@@ -63,13 +63,13 @@ func main() {
 			ToggleService: deps.ToggleService,
 		})
 		if err != nil {
-			err = fmt.Errorf("error creating rpc runtime: %v", err)
+			err = errors.Errorf("error creating rpc runtime: %v", err)
 			return
 		}
 
 		rui, err := uiserver.NewRuntime(uiserver.RuntimeConfig{Port: conf.PortUI})
 		if err != nil {
-			err = fmt.Errorf("error creating ui runtime: %v", err)
+			err = errors.Errorf("error creating ui runtime: %v", err)
 			return
 		}
 
@@ -103,7 +103,7 @@ func ConstructDeps(conf *BaseConfig) *BaseDeps {
 		if err == nil {
 			return
 		}
-		err = fmt.Errorf("failed to construct dependencies on %s: %v", name, err)
+		err = errors.Errorf("failed to construct dependencies on %s: %v", name, err)
 		log.Fatal(err)
 	}
 

@@ -2,11 +2,10 @@ package storage
 
 import (
 	"context"
-	"errors"
 
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
-
 	"github.com/guregu/null/v5"
+	"github.com/pkg/errors"
 )
 
 var (

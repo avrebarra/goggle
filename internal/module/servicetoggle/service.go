@@ -2,16 +2,16 @@ package servicetoggle
 
 import (
 	"context"
-	"fmt"
 
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
+	"github.com/pkg/errors"
 
 	"github.com/guregu/null/v5"
 )
 
 var (
-	ErrNotFound      = fmt.Errorf("not found")
-	ErrAlreadyExists = fmt.Errorf("already exists")
+	ErrNotFound      = errors.Errorf("not found")
+	ErrAlreadyExists = errors.Errorf("already exists")
 )
 
 type Service interface {

@@ -11,6 +11,7 @@ import (
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
+	"github.com/pkg/errors"
 )
 
 type ConfigRuntime struct {
@@ -28,14 +29,14 @@ type Runtime struct {
 func NewRuntime(cfg ConfigRuntime) (out *Runtime, err error) {
 	cfg.StartedAt = time.Now()
 	if err = validator.Validate(&cfg); err != nil {
-		err = fmt.Errorf("bad config: %v", err)
+		err = errors.Errorf("bad config: %v", err)
 		return
 	}
 
 	server := &Handler{ConfigRuntime: cfg}
 
 	if err = validator.Validate(server); err != nil {
-		err = fmt.Errorf("bad server construction: %v", err)
+		err = errors.Errorf("bad server construction: %v", err)
 		return
 	}
 
@@ -56,7 +57,7 @@ func (e *Runtime) Run() (err error) {
 	r.Handle("/", s)
 
 	if err = http.ListenAndServe(fmt.Sprintf(":%d", e.Config.Port), r); err != nil {
-		err = fmt.Errorf("error running server: %v", err)
+		err = errors.Errorf("error running server: %v", err)
 		return
 	}
 

@@ -2,14 +2,13 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	domainaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/domain"
-
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -29,7 +28,7 @@ type StorageSQLite struct {
 
 func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
 	if err = validator.Validate(&cfg); err != nil {
-		err = fmt.Errorf("bad config: %w", err)
+		err = errors.Wrap(err, "bad config")
 		return
 	}
 	out = &StorageSQLite{ConfigStorageSQLite: cfg}
@@ -39,7 +38,7 @@ func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
 func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domainaccesslog.AccessLog, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsFetchPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
@@ -52,7 +51,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 	// ***
 
 	if err = validator.Validate(&in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
@@ -70,7 +69,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 		Offset(in.Offset).
 		Find(&data)
 	if err = q.Error; err != nil {
-		err = fmt.Errorf("db fetch failed: %w", err)
+		err = errors.Wrap(err, "db fetch failed")
 		return
 	}
 
@@ -95,7 +94,7 @@ func (s *StorageSQLite) CreateLog(ctx context.Context, in domainaccesslog.Access
 	data := ParamData(in)
 	utils.ApplyDefaults(&data, &ParamData{CreatedAt: time.Now()})
 	if err = validator.Validate(data); err != nil {
-		err = fmt.Errorf("bad data: %w", err)
+		err = errors.Wrap(err, "bad data")
 		return
 	}
 

@@ -2,9 +2,9 @@ package storage
 
 import (
 	"context"
-	"errors"
 
 	domainaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/domain"
+	"github.com/pkg/errors"
 )
 
 var (

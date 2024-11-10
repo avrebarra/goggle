@@ -1,9 +1,8 @@
 package utils
 
 import (
-	"fmt"
-
 	"github.com/jinzhu/copier"
+	"github.com/pkg/errors"
 )
 
 func ApplyDefaults[T any](targ, defs *T) {
@@ -15,12 +14,12 @@ func ApplyDefaults[T any](targ, defs *T) {
 
 func MorphFrom[T any](targ *T, vals any, supplements *T) (err error) {
 	if err = copier.Copy(targ, vals); err != nil {
-		err = fmt.Errorf("failed to compose: %w", err)
+		err = errors.Wrap(err, "failed to compose")
 		return
 	}
 	if supplements != nil {
 		if err = copier.CopyWithOption(targ, supplements, copier.Option{IgnoreEmpty: true}); err != nil {
-			err = fmt.Errorf("failed to supplement: %w", err)
+			err = errors.Wrap(err, "failed to supplement")
 			return
 		}
 	}

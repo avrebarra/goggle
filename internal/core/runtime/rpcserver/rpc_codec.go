@@ -2,8 +2,9 @@ package rpcserver
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 
 	"github.com/gorilla/rpc"
 )

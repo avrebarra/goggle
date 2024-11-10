@@ -2,12 +2,12 @@ package serviceaccesslog
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	domainaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/domain"
 	storageaccesslog "github.com/avrebarra/goggle/internal/module/serviceaccesslog/storage"
 	"github.com/avrebarra/goggle/utils/validator"
+	"github.com/pkg/errors"
 )
 
 var _ Service = (*ServiceStd)(nil)
@@ -30,13 +30,13 @@ func NewService(cfg ServiceConfig) (out *ServiceStd, err error) {
 
 func (s *ServiceStd) DoListLogs(ctx context.Context, in ParamsDoListLogs) (out []domainaccesslog.AccessLog, total int64, err error) {
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
 	resp, tot, err := s.AccessLogStore.FetchPaged(ctx, storageaccesslog.ParamsFetchPaged(in))
 	if err != nil {
-		err = fmt.Errorf("paged fetch failed: %w", err)
+		err = errors.Wrap(err, "paged fetch failed")
 		return
 	}
 
@@ -48,7 +48,7 @@ func (s *ServiceStd) DoListLogs(ctx context.Context, in ParamsDoListLogs) (out [
 func (s *ServiceStd) AddAccessLog(ctx context.Context, toggleid string) (err error) {
 	_, err = s.AccessLogStore.CreateLog(ctx, domainaccesslog.AccessLog{ToggleID: toggleid, CreatedAt: time.Now()})
 	if err != nil {
-		err = fmt.Errorf("insert failed: %w", err)
+		err = errors.Wrap(err, "insert failed")
 		return
 	}
 	return
@@ -56,7 +56,7 @@ func (s *ServiceStd) AddAccessLog(ctx context.Context, toggleid string) (err err
 
 func (s *ServiceStd) DeleteAccessLogByToggleID(ctx context.Context, toggleid string) (err error) {
 	if err = s.AccessLogStore.DeleteAllByToggleIDs(ctx, []string{toggleid}); err != nil {
-		err = fmt.Errorf("deletion failed: %w", err)
+		err = errors.Wrap(err, "deletion failed")
 		return
 	}
 	return

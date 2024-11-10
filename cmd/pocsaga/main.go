@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
 	"github.com/avrebarra/goggle/utils/ctxboard"
 	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/do"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/rand"
 )
 
@@ -37,14 +37,14 @@ func main() {
 	err := do.JoinErrors(errs)
 	shouldRollback := false
 	if err != nil {
-		err = fmt.Errorf("parallel execution failed: %w", err)
+		err = errors.Wrap(err, "parallel execution failed")
 		log.Println(err.Error())
 		shouldRollback = true
 		err = nil // discard
 	}
 	if shouldRollback {
 		if err = saga.Rollback(); err != nil {
-			err = fmt.Errorf("failed to rollback: %w", err)
+			err = errors.Wrap(err, "failed to rollback")
 			log.Println(err.Error())
 			return
 		}
@@ -53,7 +53,7 @@ func main() {
 
 	err = saga.Commit()
 	if err != nil {
-		err = fmt.Errorf("failed to commit: %w", err)
+		err = errors.Wrap(err, "failed to commit")
 		log.Println(err.Error())
 		return
 	}
@@ -68,7 +68,7 @@ func DoBasic(ctx context.Context, name string, shouldPass bool) (err error) {
 	time.Sleep(time.Duration(dur) * time.Second)
 	if !shouldPass {
 		log.Printf("%s: failed!\n", name)
-		err = fmt.Errorf("%s failed", name)
+		err = errors.Errorf("%s failed", name)
 		return
 	}
 
@@ -88,7 +88,7 @@ func DoWithCommit(ctx context.Context, name string, shouldPass bool) (err error)
 	time.Sleep(time.Duration(dur) * time.Second)
 	if !shouldPass {
 		log.Printf("%s: failed!\n", name)
-		err = fmt.Errorf("%s failed", name)
+		err = errors.Errorf("%s failed", name)
 		return
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/avrebarra/goggle/ui"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 type Runtime struct {
@@ -22,7 +23,7 @@ type RuntimeConfig struct {
 
 func NewRuntime(cfg RuntimeConfig) (out *Runtime, err error) {
 	if err = validator.Validate(&cfg); err != nil {
-		err = fmt.Errorf("bad config")
+		err = errors.Errorf("bad config")
 		return
 	}
 
@@ -46,7 +47,7 @@ func (e *Runtime) Run() (err error) {
 		err = nil
 	}
 	if err != nil {
-		err = fmt.Errorf("error running server: %v", err)
+		err = errors.Errorf("error running server: %v", err)
 		return
 	}
 

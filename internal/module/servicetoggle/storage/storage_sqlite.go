@@ -2,16 +2,15 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
-
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/ctxsaga"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/guregu/null/v5"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -33,7 +32,7 @@ type StorageSQLite struct {
 
 func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
 	if err = validator.Validate(&cfg); err != nil {
-		err = fmt.Errorf("bad config: %w", err)
+		err = errors.Wrap(err, "bad config")
 		return
 	}
 	out = &StorageSQLite{ConfigStorageSQLite: cfg}
@@ -43,7 +42,7 @@ func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
 func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsFetchPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
@@ -58,7 +57,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 	// ***
 
 	if err = validator.Validate(&in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
@@ -94,7 +93,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 		Offset(in.Offset).
 		Find(&data)
 	if err = q.Error; err != nil {
-		err = fmt.Errorf("db fetch failed: %w", err)
+		err = errors.Wrap(err, "db fetch failed")
 		return
 	}
 
@@ -118,7 +117,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsListHeadlessAccessPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
@@ -131,7 +130,7 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 	// ***
 
 	if err = validator.Validate(&in); err != nil {
-		err = fmt.Errorf("bad params: %w", err)
+		err = errors.Wrap(err, "bad params")
 		return
 	}
 
@@ -160,7 +159,7 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 		Offset(in.Offset).
 		Find(&data)
 	if err = q.Error; err != nil {
-		err = fmt.Errorf("db fetch failed: %w", err)
+		err = errors.Wrap(err, "db fetch failed")
 		return
 	}
 
@@ -195,11 +194,11 @@ func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out
 		First(&data)
 	err = q.Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = fmt.Errorf("%w: %s", ErrStoreNotFound, id)
+		err = errors.Errorf("%w: %s", ErrStoreNotFound, id)
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("db fetch failed: %w", err)
+		err = errors.Wrap(err, "db fetch failed")
 		return
 	}
 	out = domaintoggle.ToggleStat(data)
@@ -218,7 +217,7 @@ func (s *StorageSQLite) UpsertToggle(ctx context.Context, in domaintoggle.Toggle
 	data := ParamData(in)
 	utils.ApplyDefaults(&data, &ParamData{UpdatedAt: time.Now(), Status: false})
 	if err = validator.Validate(data); err != nil {
-		err = fmt.Errorf("bad data: %w", err)
+		err = errors.Wrap(err, "bad data")
 		return
 	}
 	if data.ID != "" {
