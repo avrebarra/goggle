@@ -3,7 +3,7 @@ package uiserver
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/avrebarra/goggle/ui"
@@ -59,15 +59,16 @@ func (e *Runtime) Start(ctx context.Context) <-chan bool {
 
 	go func() {
 		<-ctx.Done()
-		fmt.Println("shutting down ui server...")
+		slog.Info("shutting down ui server...")
 		e.Server.Shutdown(ctx)
 		close(shutdownChan)
 	}()
 
 	go func() {
-		log.Printf("starting ui server in http://localhost:%d\n", e.Config.Port)
+		slog.Info(fmt.Sprintf("starting ui server in http://localhost:%d", e.Config.Port))
 		if err := e.Run(); err != nil {
-			log.Printf("error running ui server: %v", err)
+			err = errors.Wrap(err, "error running ui server")
+			slog.Error(err.Error())
 		}
 	}()
 

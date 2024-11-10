@@ -3,7 +3,7 @@ package rpcserver
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -69,14 +69,15 @@ func (e *Runtime) Start(ctx context.Context) <-chan bool {
 
 	go func() {
 		<-ctx.Done()
-		fmt.Println("shutting down rpc server...")
+		slog.Info("shutting down rpc server...")
 		close(shutdownChan)
 	}()
 
 	go func() {
-		log.Printf("starting rpc server in http://localhost:%d\n", e.Config.Port)
+		slog.Info(fmt.Sprintf("starting rpc server in http://localhost:%d", e.Config.Port))
 		if err := e.Run(); err != nil {
-			log.Printf("error running rpc server: %v", err)
+			err = errors.Wrap(err, "error running rpc server")
+			slog.Error(err.Error())
 		}
 	}()
 

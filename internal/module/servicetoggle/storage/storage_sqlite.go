@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	domaintoggle "github.com/avrebarra/goggle/internal/module/servicetoggle/domain"
@@ -54,6 +53,9 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 		AccessFreqWeekly int         `gorm:"column:access_freq_weekly"`
 	}
 
+	err = errors.New("not implemented")
+	return
+
 	// ***
 
 	if err = validator.Validate(&in); err != nil {
@@ -101,10 +103,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 	for _, d := range data {
 		val := domaintoggle.ToggleWithDetail{}
 		if d.LastAccessedAt.Valid {
-			t, err := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
+			t, _ := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
 			val.LastAccessedAt = t
 		}
 		utils.MorphFrom(&val, &d, nil)
@@ -166,10 +165,7 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 	for _, d := range data {
 		val := domaintoggle.ToggleWithDetail{}
 		if d.LastAccessedAt.Valid {
-			t, err := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
+			t, _ := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
 			val.LastAccessedAt = t
 		}
 		utils.MorphFrom(&val, &d, nil)
@@ -194,7 +190,7 @@ func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out
 		First(&data)
 	err = q.Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = errors.Errorf("%w: %s", ErrStoreNotFound, id)
+		err = errors.Wrapf(ErrStoreNotFound, "id: %s", id)
 		return
 	}
 	if err != nil {

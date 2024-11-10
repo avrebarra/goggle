@@ -2,8 +2,13 @@ package rpcserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"path/filepath"
+	"runtime"
+	"strings"
 
+	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/pkg/errors"
 
 	"github.com/gorilla/rpc"
@@ -65,6 +70,20 @@ func (c *CodecRequest) WriteResponse(w http.ResponseWriter, reply interface{}, m
 		Error:  nil,
 	}
 	if methodErr != nil {
+		_, b, _, _ := runtime.Caller(0)
+		basepath := filepath.Dir(b)
+		stacktrace, errExtract := utils.ExtractStackTrace(methodErr)
+		if errExtract == nil {
+			for _, e := range stacktrace {
+				fmt.Println(e.FuncName)
+				fmt.Println(e.Source)
+				fmt.Println()
+				if strings.HasPrefix(e.Source, basepath) {
+					break
+				}
+			}
+		}
+
 		res.Error = RespErrorPresets[ErrUnexpected].WithMessage(methodErr.Error())
 		res.Result = nil
 	}

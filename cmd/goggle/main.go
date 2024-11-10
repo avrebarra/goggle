@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,6 +33,8 @@ type BaseConfig struct {
 }
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	conf := &BaseConfig{
 		PortRPC:      9000,
 		PortUI:       9001,
@@ -46,14 +49,18 @@ func main() {
 		defer cancel()
 
 		// validate config
-		if err := validator.Validate(conf); err != nil {
-			log.Fatalf("bad config: %v", err)
+		if err = validator.Validate(conf); err != nil {
+			err = errors.Errorf("bad config: %v", err)
+			slog.Error(err.Error())
+			return
 		}
 
 		// construct dependencies
 		deps := ConstructDeps(conf)
-		if err := validator.Validate(deps); err != nil {
-			log.Fatalf("bad deps: %v", err)
+		if err = validator.Validate(deps); err != nil {
+			err = errors.Errorf("bad deps: %v", err)
+			slog.Error(err.Error())
+			return
 		}
 
 		// construct runtimes
