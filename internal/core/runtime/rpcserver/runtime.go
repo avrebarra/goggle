@@ -73,14 +73,14 @@ func (e *Runtime) Start(ctx context.Context) <-chan bool {
 
 	go func() {
 		<-ctx.Done()
-		slog.Info("shutting down rpc server...")
+		slog.Info("shutting down rpcserver...")
 		close(shutdownChan)
 	}()
 
 	go func() {
-		slog.Info(fmt.Sprintf("starting rpc server in http://localhost:%d", e.Config.Port))
+		slog.Info(fmt.Sprintf("starting rpcserver in http://localhost:%d", e.Config.Port))
 		if err := e.Run(); err != nil {
-			err = errors.Wrap(err, "error running rpc server")
+			err = errors.Wrap(err, "error running rpcserver")
 			slog.Error(err.Error())
 		}
 	}()

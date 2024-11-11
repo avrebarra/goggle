@@ -10,5 +10,12 @@ var (
 )
 
 type Client interface {
-	GetPopularRepoNames(ctx context.Context) (names []string, err error)
+	GetTopRepoDetails(ctx context.Context) (out []RepoDetail, err error)
+}
+
+type RepoDetail struct {
+	Name            string
+	Author          string
+	URI             string
+	StargazersCount int
 }

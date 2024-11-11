@@ -59,15 +59,15 @@ func (e *Runtime) Start(ctx context.Context) <-chan bool {
 
 	go func() {
 		<-ctx.Done()
-		slog.Info("shutting down ui server...")
+		slog.Info("shutting down uiserver...")
 		e.Server.Shutdown(ctx)
 		close(shutdownChan)
 	}()
 
 	go func() {
-		slog.Info(fmt.Sprintf("starting ui server in http://localhost:%d", e.Config.Port))
+		slog.Info(fmt.Sprintf("starting uiserver in http://localhost:%d", e.Config.Port))
 		if err := e.Run(); err != nil {
-			err = errors.Wrap(err, "error running ui server")
+			err = errors.Wrap(err, "error running uiserver")
 			slog.Error(err.Error())
 		}
 	}()

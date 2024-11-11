@@ -3,7 +3,6 @@ package clientgithubrepo_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/avrebarra/goggle/internal/module/clientgithubrepo"
 	"github.com/avrebarra/goggle/internal/utils"
@@ -15,18 +14,16 @@ import (
 
 var (
 	HTTP_DefaultConfig = clientgithubrepo.ConfigHTTP{
-		RESTClient:  resty.New(),
-		HTTPTimeout: 10 * time.Second,
-		BaseURL:     "https://api.github.com/",
+		RESTClient: resty.New(),
+		BaseURL:    "https://api.github.com/",
 	}
 )
 
 func TestNew(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		c, err := clientgithubrepo.NewHTTP(clientgithubrepo.ConfigHTTP{
-			RESTClient:  resty.New(),
-			HTTPTimeout: 10 * time.Second,
-			BaseURL:     "https://api.github.com/",
+			RESTClient: resty.New(),
+			BaseURL:    "https://api.github.com/",
 		})
 
 		assert.NoError(t, err)
@@ -56,7 +53,7 @@ func TestHTTP_GetPopularRepoNames(t *testing.T) {
 		e, err := clientgithubrepo.NewHTTP(HTTP_DefaultConfig)
 		require.NoError(t, err)
 
-		out, err := e.GetPopularRepoNames(context.Background())
+		out, err := e.GetTopRepoDetails(context.Background())
 
 		assert.NoError(t, err)
 		assert.NotEmpty(t, out)
@@ -77,7 +74,7 @@ func TestHTTP_GetPopularRepoNames(t *testing.T) {
 		e, err := clientgithubrepo.NewHTTP(HTTP_DefaultConfig)
 		require.NoError(t, err)
 
-		_, err = e.GetPopularRepoNames(context.Background())
+		_, err = e.GetTopRepoDetails(context.Background())
 
 		assert.Error(t, err)
 	})
@@ -91,7 +88,7 @@ func TestHTTP_GetPopularRepoNames(t *testing.T) {
 		e, err := clientgithubrepo.NewHTTP(HTTP_DefaultConfig)
 		require.NoError(t, err)
 
-		_, err = e.GetPopularRepoNames(context.Background())
+		_, err = e.GetTopRepoDetails(context.Background())
 
 		assert.Error(t, err)
 	})

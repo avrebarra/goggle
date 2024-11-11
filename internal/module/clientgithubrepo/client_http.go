@@ -12,9 +12,8 @@ import (
 )
 
 type ConfigHTTP struct {
-	RESTClient  *resty.Client `validate:"required"`
-	HTTPTimeout time.Duration `validate:"required"`
-	BaseURL     string        `validate:"required,endswith=/"`
+	RESTClient *resty.Client `validate:"required"`
+	BaseURL    string        `validate:"required,endswith=/"`
 }
 
 type HTTP struct {
@@ -30,7 +29,7 @@ func NewHTTP(cfg ConfigHTTP) (Client, error) {
 	return e, nil
 }
 
-func (e *HTTP) GetPopularRepoNames(ctx context.Context) (out []string, err error) {
+func (e *HTTP) GetTopRepoDetails(ctx context.Context) (out []RepoDetail, err error) {
 	type ResponseBody struct {
 		TotalCount        int  `json:"total_count"`
 		IncompleteResults bool `json:"incomplete_results"`
@@ -139,9 +138,6 @@ func (e *HTTP) GetPopularRepoNames(ctx context.Context) (out []string, err error
 
 	// ***
 
-	ctxReq, cancel := context.WithTimeout(ctx, e.config.HTTPTimeout)
-	defer cancel()
-
 	// prepare request
 	data := url.Values{}
 	data.Set("sort", "stars")
@@ -151,7 +147,7 @@ func (e *HTTP) GetPopularRepoNames(ctx context.Context) (out []string, err error
 
 	respdata := ResponseBody{}
 	resp, err := e.config.RESTClient.R().
-		SetContext(ctxReq).
+		SetContext(ctx).
 		SetResult(&respdata).
 		Get(e.config.BaseURL + "search/repositories" + "?" + data.Encode())
 	if err != nil {
@@ -163,9 +159,14 @@ func (e *HTTP) GetPopularRepoNames(ctx context.Context) (out []string, err error
 		return
 	}
 
-	out = []string{}
-	for _, v := range respdata.Items {
-		out = append(out, v.FullName)
+	out = []RepoDetail{}
+	for _, e := range respdata.Items {
+		out = append(out, RepoDetail{
+			Name:            e.Name,
+			StargazersCount: e.StargazersCount,
+			Author:          e.Owner.Login,
+			URI:             e.HTMLURL,
+		})
 	}
 
 	return

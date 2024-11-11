@@ -70,7 +70,11 @@ func MWRequestLogger() mux.MiddlewareFunc {
 				logdata.Error = errdata
 			}
 
-			slog.Info("request finished", "type", "opslog", "opsdata", logdata)
+			slog.Info("request finished",
+				"type", "opslog",
+				"runtime", "rpcserver",
+				"opsdata", logdata,
+			)
 		})
 	}
 }
