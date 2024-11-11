@@ -18,7 +18,8 @@ type Runtime struct {
 }
 
 type RuntimeConfig struct {
-	Port int `validate:"required"`
+	DebugMode bool
+	Port      int `validate:"required"`
 }
 
 func NewRuntime(cfg RuntimeConfig) (out *Runtime, err error) {
@@ -32,11 +33,15 @@ func NewRuntime(cfg RuntimeConfig) (out *Runtime, err error) {
 }
 
 func (e *Runtime) Run() (err error) {
+	r := gin.New()
 	gin.SetMode(gin.ReleaseMode)
 
-	r := gin.New()
-	ui.AddRoutes(r)
+	if e.Config.DebugMode {
+		gin.SetMode(gin.DebugMode)
+		r = gin.Default()
+	}
 
+	ui.AddRoutes(r)
 	e.Server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", e.Config.Port),
 		Handler: http.HandlerFunc(r.ServeHTTP),

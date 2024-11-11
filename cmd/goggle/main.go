@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 	"github.com/avrebarra/goggle/internal/module/servicetoggle/storetoggle"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/caarlos0/env/v11"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
 	"github.com/leaanthony/clir"
@@ -26,6 +28,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -108,7 +111,10 @@ func main() {
 		})
 		ensure(err, "rpc runtime")
 
-		rui, err := uiserver.NewRuntime(uiserver.RuntimeConfig{Port: conf.PortUI})
+		rui, err := uiserver.NewRuntime(uiserver.RuntimeConfig{
+			Port:      conf.PortUI,
+			DebugMode: conf.DebugMode,
+		})
 		ensure(err, "ui runtime")
 
 		// start runtimes
@@ -157,7 +163,21 @@ type BaseDeps struct {
 }
 
 func ConstructDeps(conf *BaseConfig) *BaseDeps {
-	db, err := gorm.Open(sqlite.Open(conf.SQLiteDBPath), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(conf.SQLiteDBPath), &gorm.Config{
+		SkipDefaultTransaction: true,
+		Logger: func() logger.Interface {
+			e := logger.Discard
+			if conf.DebugMode {
+				w := log.New(os.Stdout, "\r\n", log.LstdFlags)
+				e = logger.New(w, logger.Config{
+					Colorful:             true,
+					LogLevel:             logger.Info,
+					ParameterizedQueries: false,
+				})
+			}
+			return e
+		}(),
+	})
 	ensure(err, "deps db/sqlite")
 
 	httpcli := resty.New()
@@ -223,7 +243,7 @@ func ensure(err error, name string) {
 	if err == nil {
 		return
 	}
-	err = errors.Errorf("ensure %s failed: %v", name, err)
+	err = errors.Errorf("ensuring failed at %s: %v", name, err)
 	slog.Error(err.Error())
 	os.Exit(1)
 }

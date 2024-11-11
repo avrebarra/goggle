@@ -17,5 +17,5 @@ generate-mock:
 build: build-ui build-go
 
 watch:
-	@gow run ./cmd/goggle | ./scripts/logform -p
+	@gow run ./cmd/goggle -debug | ./scripts/logform -p
 
