@@ -5,12 +5,13 @@ require 'optparse'
 
 def transform_pretty_print(log, options)
   if system('which jq &>/dev/null')
-    `echo '#{log.chomp}' | jq --color-output .`
+    output = log.strip
+    output = `echo '#{output}' | jq --color-output . 2>&1` unless output.empty?
+    raise "Failed to parse JSON: #{output}" unless $?.success? || output.empty?
+    log = output
   else
-    JSON.pretty_generate(JSON.parse(log))
+    log = JSON.pretty_generate(JSON.parse(log))
   end
-rescue JSON::ParserError => e
-  warn "Failed to parse JSON: #{e.message}"
   log
 end
 
@@ -56,14 +57,23 @@ def main
     mode = 'plain'
   end
   
-  # exec piping
   log = ''
+  isfailstreak = false
   while (line = STDIN.gets) do
     log += line
     if line =~ /\n\z/
-      out = transformers[mode].call(log, options)
-      $stdout.write(out.chomp + "\n") if out
-      $stdout.flush
+      begin
+        out = transformers[mode].call(log, options)
+        isfailstreak = false unless out.empty?
+      rescue => e
+        warn "\e[90mFailed to transform: #{e.message.strip}\e[0m" unless isfailstreak
+        isfailstreak = true
+        out = log
+      end
+      unless out.empty?
+        $stdout.write(out.strip + "\n")
+        $stdout.flush
+      end
       log = ''
     end
   end
