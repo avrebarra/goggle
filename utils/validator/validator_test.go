@@ -83,3 +83,31 @@ func TestValidationError_Unwrap(t *testing.T) {
 	out := ve.Unwrap()
 	assert.NotNil(t, out)
 }
+
+func TestGetErrorsData(t *testing.T) {
+	type DataStructure struct {
+		Name string `validate:"required" alias:"nama"`
+		Age  int    `validate:"required,gte=0" alias:"usia"`
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		data := DataStructure{Name: "", Age: 0}
+
+		err := validator.Validate(data)
+		verr, ok := validator.ExtractValidationErrors(err)
+
+		assert.True(t, ok)
+		assert.NotNil(t, verr)
+		assert.NotEmpty(t, verr)
+	})
+
+	t.Run("on non validation error", func(t *testing.T) {
+		err := assert.AnError
+		verr, ok := validator.ExtractValidationErrors(err)
+
+		assert.False(t, ok)
+		assert.NotNil(t, verr)
+		assert.NotNil(t, verr)
+		assert.Empty(t, verr)
+	})
+}

@@ -4,11 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/avrebarra/goggle/utils/ctxboard"
 	"github.com/gorilla/rpc"
 	"github.com/pkg/errors"
 )
+
+var (
+	KeyRequestContext = "rpc/request-context"
+)
+
+type RequestContext struct {
+	OpsID        string
+	OpsName      string
+	StartedAt    time.Time
+	IngoingData  any
+	OutgoingData any
+	Error        error
+}
+
+// ***
 
 var _ rpc.Codec = (*Codec)(nil)
 

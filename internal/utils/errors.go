@@ -11,12 +11,38 @@ type ErrorStackTrace struct {
 	Source   string
 }
 
-func ExtractStackTrace(in error) (out []ErrorStackTrace, err error) {
+func ExtractStackTrace(cur error) (out []ErrorStackTrace, err error) {
 	type stackTracer interface {
 		StackTrace() errors.StackTrace
 	}
 
-	st, ok := in.(stackTracer)
+	istracer := func(cur error) bool {
+		if cur == nil {
+			return false
+		}
+		_, ok := cur.(stackTracer)
+		return ok
+	}
+	nexttracer := func(cur error) error {
+		for cur != nil {
+			child := errors.Unwrap(cur)
+			if istracer(child) {
+				return child
+			}
+			cur = child
+		}
+		return nil
+	}
+
+	for {
+		child := nexttracer(cur)
+		if child == nil {
+			break
+		}
+		cur = child
+	}
+
+	st, ok := cur.(stackTracer)
 	if !ok {
 		err = errors.New("err have no stacktrace")
 		return

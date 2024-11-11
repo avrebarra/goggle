@@ -27,6 +27,15 @@ func Validate(in interface{}) (err error) {
 	return Global().Validate(in)
 }
 
+func ExtractValidationErrors(in error) (out ValidationError, ok bool) {
+	ok = true
+	if out, ok = in.(ValidationError); !ok {
+		ok = false
+		return
+	}
+	return
+}
+
 // ***
 
 type Validator struct {

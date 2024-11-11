@@ -3,8 +3,6 @@ package httpserver
 import (
 	"context"
 	"time"
-
-	"github.com/avrebarra/goggle/internal/module/servicetoggle"
 )
 
 func (s *Handler) Ping() HandlerFunc {
@@ -18,26 +16,6 @@ func (s *Handler) Ping() HandlerFunc {
 			Version:   s.Version,
 			StartedAt: s.StartedAt,
 			Uptime:    time.Since(s.StartedAt).Round(time.Second).String(),
-		}
-		return rp.Send(RespSuccess, out)
-	}
-}
-
-func (s *Handler) ListToggles() HandlerFunc {
-	type ResponseData struct {
-		Data  any   `json:"data"`
-		Total int64 `json:"total"`
-	}
-	return func(ctx context.Context, rp RequestPack) (err error) {
-		resp, tot, err := s.ToggleService.DoListToggles(ctx, servicetoggle.ParamsDoListToggles{})
-		if err != nil {
-			err = ErrNotFound.Wrap(err).WithMessage("good days service failure").WithDetail("something failed")
-			return
-		}
-
-		out := ResponseData{
-			Data:  resp,
-			Total: tot,
 		}
 		return rp.Send(RespSuccess, out)
 	}

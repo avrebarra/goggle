@@ -33,8 +33,8 @@ func NewRuntime(cfg RuntimeConfig) (out *Runtime, err error) {
 }
 
 func (e *Runtime) Run() (err error) {
-	r := gin.New()
 	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
 
 	if e.Config.DebugMode {
 		gin.SetMode(gin.DebugMode)
