@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/avrebarra/goggle/internal/core/runtime/cronworker"
+	"github.com/avrebarra/goggle/internal/core/runtime/httpserver"
 	"github.com/avrebarra/goggle/internal/core/runtime/rpcserver"
 	"github.com/avrebarra/goggle/internal/core/runtime/uiserver"
 	"github.com/avrebarra/goggle/internal/module/clientgithubrepo"
@@ -42,11 +43,13 @@ type BaseConfig struct {
 	ConfigFilePath      string        `env:"CONFIG_PATH" validate:"required"`
 	PortUI              int           `yaml:"port_ui" env:"PORT_UI" validate:"required"`
 	PortRPC             int           `yaml:"port_rpc" env:"PORT_RPC" validate:"required"`
+	PortHTTP            int           `yaml:"port_http" env:"PORT_HTTP" validate:"required"`
 	SQLiteDBPath        string        `yaml:"sqlite_db_path" env:"SQLITE_DB_PATH" validate:"required"`
 	ClientGitHubTimeout time.Duration `yaml:"client_github_timeout" env:"CLIENT_GITHUB_TIMEOUT" validate:"required"`
 	ClientGitHubBaseURL string        `yaml:"client_github_base_url" env:"CLIENT_GITHUB_BASE_URL" validate:"required,endswith=/"`
 
 	RunRPCServer  bool
+	RunHTTPServer bool
 	RunUIServer   bool
 	RunCronWorker bool
 }
@@ -57,12 +60,14 @@ func main() {
 	conf := &BaseConfig{
 		PortRPC:             9000,
 		PortUI:              9001,
+		PortHTTP:            9002,
 		ConfigFilePath:      "./config.yaml",
 		SQLiteDBPath:        "./local.db",
 		ClientGitHubBaseURL: "https://api.github.com/",
 		ClientGitHubTimeout: 10 * time.Second,
 
 		RunRPCServer:  false,
+		RunHTTPServer: false,
 		RunUIServer:   false,
 		RunCronWorker: false,
 	}
@@ -73,6 +78,7 @@ func main() {
 	cli.BoolFlag("debug", "Set debug mode", &conf.DebugMode)
 	cli.StringFlag("config", "Config file path", &conf.ConfigFilePath)
 	cli.NewSubCommandInheritFlags("cronworker", "").Action(func() error { conf.RunCronWorker = true; return exec() })
+	cli.NewSubCommandInheritFlags("httpserver", "").Action(func() error { conf.RunHTTPServer = true; return exec() })
 	cli.NewSubCommandInheritFlags("rpcserver", "").Action(func() error { conf.RunRPCServer = true; return exec() })
 	cli.NewSubCommandInheritFlags("uiserver", "").Action(func() error { conf.RunUIServer = true; return exec() })
 	cli.AddCommand(clir.NewCommand("help", "").Action(func() error { cli.PrintHelp(); return nil }))
@@ -80,6 +86,7 @@ func main() {
 		conf.RunCronWorker = true
 		conf.RunRPCServer = true
 		conf.RunUIServer = true
+		conf.RunHTTPServer = true
 		return exec()
 	})
 
@@ -117,12 +124,22 @@ func main() {
 		})
 		ensure(err, "ui runtime")
 
+		rhttp, err := httpserver.NewRuntime(httpserver.Config{
+			Version:       Version,
+			Port:          conf.PortHTTP,
+			DebugMode:     conf.DebugMode,
+			StartedAt:     time.Now(),
+			ToggleService: deps.ToggleService,
+		})
+		ensure(err, "httpserver runtime")
+
 		// start runtimes
 		wchs := []<-chan bool{}
 		runtimemap := map[Runtime]bool{
 			rcron: conf.RunCronWorker,
 			rrpc:  conf.RunRPCServer,
 			rui:   conf.RunUIServer,
+			rhttp: conf.RunHTTPServer,
 		}
 		for rt, shouldStart := range runtimemap {
 			if !shouldStart {
@@ -243,7 +260,7 @@ func ensure(err error, name string) {
 	if err == nil {
 		return
 	}
-	err = errors.Errorf("ensuring failed at %s: %v", name, err)
+	err = errors.Errorf("ensuring `%s` failed: %v", name, err)
 	slog.Error(err.Error())
 	os.Exit(1)
 }
