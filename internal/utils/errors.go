@@ -16,7 +16,7 @@ func ExtractStackTrace(in error) (out []ErrorStackTrace, err error) {
 		StackTrace() errors.StackTrace
 	}
 
-	st, ok := errors.Cause(in).(stackTracer)
+	st, ok := in.(stackTracer)
 	if !ok {
 		err = errors.New("err have no stacktrace")
 		return

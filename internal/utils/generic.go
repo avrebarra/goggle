@@ -20,10 +20,7 @@ func MorphFrom[T any](targ *T, vals any, supplements *T) (err error) {
 		return
 	}
 	if supplements != nil {
-		if err = copier.CopyWithOption(targ, supplements, copier.Option{IgnoreEmpty: true}); err != nil {
-			err = errors.Wrap(err, "failed to supplement")
-			return
-		}
+		_ = copier.CopyWithOption(targ, supplements, copier.Option{IgnoreEmpty: true})
 	}
 	return
 }
