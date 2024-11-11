@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -42,6 +42,10 @@ type BaseConfig struct {
 	SQLiteDBPath        string        `yaml:"sqlite_db_path" env:"SQLITE_DB_PATH" validate:"required"`
 	ClientGitHubTimeout time.Duration `yaml:"client_github_timeout" env:"CLIENT_GITHUB_TIMEOUT" validate:"required"`
 	ClientGitHubBaseURL string        `yaml:"client_github_base_url" env:"CLIENT_GITHUB_BASE_URL" validate:"required,endswith=/"`
+
+	RunRPCServer  bool
+	RunUIServer   bool
+	RunCronWorker bool
 }
 
 func main() {
@@ -54,11 +58,29 @@ func main() {
 		SQLiteDBPath:        "./local.db",
 		ClientGitHubBaseURL: "https://api.github.com/",
 		ClientGitHubTimeout: 10 * time.Second,
+
+		RunRPCServer:  false,
+		RunUIServer:   false,
+		RunCronWorker: false,
 	}
 
+	var exec func() error
+
 	cli := clir.NewCli(AppName, AppDesc, Version)
+	cli.BoolFlag("debug", "Set debug mode", &conf.DebugMode)
 	cli.StringFlag("config", "Config file path", &conf.ConfigFilePath)
-	cli.Action(func() (err error) {
+	cli.NewSubCommandInheritFlags("cronworker", "").Action(func() error { conf.RunCronWorker = true; return exec() })
+	cli.NewSubCommandInheritFlags("rpcserver", "").Action(func() error { conf.RunRPCServer = true; return exec() })
+	cli.NewSubCommandInheritFlags("uiserver", "").Action(func() error { conf.RunUIServer = true; return exec() })
+	cli.AddCommand(clir.NewCommand("help", "").Action(func() error { cli.PrintHelp(); return nil }))
+	cli.Action(func() error {
+		conf.RunCronWorker = true
+		conf.RunRPCServer = true
+		conf.RunUIServer = true
+		return exec()
+	})
+
+	exec = func() (err error) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -89,24 +111,41 @@ func main() {
 		rui, err := uiserver.NewRuntime(uiserver.RuntimeConfig{Port: conf.PortUI})
 		ensure(err, "ui runtime")
 
-		chWaitCron := rcron.Start(ctx)
-		chWaitRPC := rrpc.Start(ctx)
-		chWaitUI := rui.Start(ctx)
+		// start runtimes
+		wchs := []<-chan bool{}
+		runtimemap := map[Runtime]bool{
+			rcron: conf.RunCronWorker,
+			rrpc:  conf.RunRPCServer,
+			rui:   conf.RunUIServer,
+		}
+		for rt, shouldStart := range runtimemap {
+			if !shouldStart {
+				continue
+			}
+			wchs = append(wchs, rt.Start(ctx))
+		}
 
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 		<-sigs
 
 		cancel()
-		<-chWaitCron
-		<-chWaitRPC
-		<-chWaitUI
+		wg := sync.WaitGroup{}
+		for _, wch := range wchs {
+			wg.Add(1)
+			go func() {
+				<-wch
+				wg.Done()
+			}()
+		}
+		wg.Wait()
 
 		return nil
-	})
+	}
 
 	if err := cli.Run(); err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 }
 
@@ -175,6 +214,10 @@ func ConstructConfig(conf *BaseConfig) *BaseConfig {
 }
 
 // ***
+
+type Runtime interface {
+	Start(ctx context.Context) <-chan bool
+}
 
 func ensure(err error, name string) {
 	if err == nil {
