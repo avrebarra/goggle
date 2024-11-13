@@ -21,7 +21,6 @@ import (
 	"github.com/avrebarra/goggle/internal/module/servicetoggle/storetoggle"
 	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/caarlos0/env/v11"
-
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
 	"github.com/leaanthony/clir"
