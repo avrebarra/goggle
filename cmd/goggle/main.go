@@ -101,8 +101,7 @@ func main() {
 	})
 
 	exec = func() (err error) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := context.Background()
 
 		// construct config
 		conf = ConstructConfig(conf)
@@ -144,7 +143,7 @@ func main() {
 		ensure(err, "httpserver runtime")
 
 		// start runtimes
-		wchs := []<-chan bool{}
+		runtimes := []Runtime{}
 		runtimemap := map[Runtime]bool{
 			rcron: conf.RunCronWorker,
 			rrpc:  conf.RunRPCServer,
@@ -155,23 +154,10 @@ func main() {
 			if !shouldStart {
 				continue
 			}
-			wchs = append(wchs, rt.Start(ctx))
+			runtimes = append(runtimes, rt)
 		}
 
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-		<-sigs
-
-		cancel()
-		wg := sync.WaitGroup{}
-		for _, wch := range wchs {
-			wg.Add(1)
-			go func() {
-				<-wch
-				wg.Done()
-			}()
-		}
-		wg.Wait()
+		run(ctx, runtimes...)
 
 		return nil
 	}
@@ -297,4 +283,38 @@ func ensure(err error, name string) {
 	err = errors.Errorf("ensuring `%s` failed: %v", name, err)
 	slog.Error(err.Error())
 	os.Exit(1)
+}
+
+func run(ctx context.Context, runtimes ...Runtime) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// start runtimes
+	wchs := []<-chan bool{}
+	runtimemap := map[Runtime]bool{}
+	for _, rt := range runtimes {
+		runtimemap[rt] = true
+	}
+
+	for rt, shouldStart := range runtimemap {
+		if !shouldStart {
+			continue
+		}
+		wchs = append(wchs, rt.Start(ctx))
+	}
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+
+	cancel()
+	wg := sync.WaitGroup{}
+	for _, wch := range wchs {
+		wg.Add(1)
+		go func() {
+			<-wch
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
