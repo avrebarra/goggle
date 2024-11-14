@@ -12,15 +12,30 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-// 2024/11/09 20:46:02 task_d/announce: doing for 2 seconds...
-// 2024/11/09 20:46:02 task_a/create_user: doing for 2 seconds...
-// 2024/11/09 20:46:02 task_b/create_address: doing for 3 seconds...
-// 2024/11/09 20:46:02 task_c/fill_balance: doing for 4 seconds...
-// 2024/11/09 20:46:04 task_d/announce: failed!
-// 2024/11/09 20:46:04 task_a/create_user: failed!
-// 2024/11/09 20:46:05 task_b/create_address: failed!
-// 2024/11/09 20:46:06 task_c/fill_balance: failed!
-// 2024/11/09 20:46:06 parallel execution failed: 4 joint error: task_a/create_user failed; task_b/create_address failed; task_c/fill_balance failed; task_d/announce failed
+// ➜  goggle git:(main) ✗ gow run ./cmd/pocsaga (success case)
+// 2024/11/14 12:21:18 task_c/fill_balance: doing for 13 seconds...
+// 2024/11/14 12:21:18 task_d/announce: doing for 2 seconds...
+// 2024/11/14 12:21:18 task_a/create_user: doing for 12 seconds... (has commit step)
+// 2024/11/14 12:21:18 task_b/create_address: doing for 14 seconds... (has commit step)
+// 2024/11/14 12:21:20 task_d/announce: done
+// 2024/11/14 12:21:30 task_a/create_user: done
+// 2024/11/14 12:21:31 task_c/fill_balance: done
+// 2024/11/14 12:21:32 task_b/create_address: done
+// 2024/11/14 12:21:32 committed task_a/create_user
+// 2024/11/14 12:21:32 committed task_b/create_address
+
+// ➜  goggle git:(main) ✗ gow run ./cmd/pocsaga (error case)
+// 2024/11/14 12:19:53 task_b/create_address: doing for 2 seconds... (has commit step)
+// 2024/11/14 12:19:53 task_a/create_user: doing for 12 seconds... (has commit step)
+// 2024/11/14 12:19:53 task_d/announce: doing for 14 seconds...
+// 2024/11/14 12:19:53 task_c/fill_balance: doing for 13 seconds...
+// 2024/11/14 12:19:55 task_b/create_address: failed!
+// 2024/11/14 12:20:05 task_a/create_user: done
+// 2024/11/14 12:20:06 task_c/fill_balance: failed!
+// 2024/11/14 12:20:07 task_d/announce: done
+// 2024/11/14 12:20:07 parallel execution failed: 2 joint error: task_b/create_address failed; task_c/fill_balance failed
+// 2024/11/14 12:20:07 rolledback task_d/announce
+// 2024/11/14 12:20:07 rolledback task_a/create_user
 
 func main() {
 	ctx := context.Background()
@@ -29,10 +44,10 @@ func main() {
 	saga := ctxsaga.CreateSaga(ctx)
 
 	errs := do.Parallel(ctx, []func() error{
-		func() (err error) { return DoBasic(ctx, "task_a/create_user", true) },
-		func() (err error) { return DoWithCommit(ctx, "task_b/create_address", true) },
-		func() (err error) { return DoBasic(ctx, "task_c/fill_balance", true) },
-		func() (err error) { return DoWithCommit(ctx, "task_d/announce", true) },
+		func() (err error) { return Do(ctx, "task_a/create_user", true, true) },
+		func() (err error) { return Do(ctx, "task_b/create_address", true, true) },
+		func() (err error) { return Do(ctx, "task_c/fill_balance", false, true) },
+		func() (err error) { return Do(ctx, "task_d/announce", false, true) },
 	})
 	err := do.JoinErrors(errs)
 	shouldRollback := false
@@ -58,13 +73,17 @@ func main() {
 		return
 	}
 }
-
-func DoBasic(ctx context.Context, name string, shouldPass bool) (err error) {
+func Do(ctx context.Context, name string, hasCommitFx bool, shouldPass bool) (err error) {
 	saga, _ := ctxsaga.GetSaga(ctx)
 
-	dur := rand.Intn(5) + 1
+	dur := rand.Intn(20) + 1
 
-	log.Printf("%s: doing for %d seconds...\n", name, dur)
+	log.Printf("%s: doing for %d seconds... %s\n", name, dur, func() string {
+		if hasCommitFx {
+			return "(has commit step)"
+		}
+		return ""
+	}())
 	time.Sleep(time.Duration(dur) * time.Second)
 	if !shouldPass {
 		log.Printf("%s: failed!\n", name)
@@ -74,28 +93,10 @@ func DoBasic(ctx context.Context, name string, shouldPass bool) (err error) {
 
 	log.Printf("%s: done\n", name)
 
-	saga.AddRollbackFx(func() (err error) { log.Println("rolledback", name); return })
-
-	return
-}
-
-func DoWithCommit(ctx context.Context, name string, shouldPass bool) (err error) {
-	saga, _ := ctxsaga.GetSaga(ctx)
-
-	dur := rand.Intn(5) + 1
-
-	log.Printf("%s: doing for %d seconds...\n", name, dur)
-	time.Sleep(time.Duration(dur) * time.Second)
-	if !shouldPass {
-		log.Printf("%s: failed!\n", name)
-		err = errors.Errorf("%s failed", name)
-		return
+	if hasCommitFx {
+		saga.AddCommitFx(func() (err error) { log.Println("committed", name); return })
 	}
-
-	log.Printf("%s: done\n", name)
-
 	saga.AddRollbackFx(func() (err error) { log.Println("rolledback", name); return })
-	saga.AddCommitFx(func() (err error) { log.Println("committed", name); return })
 
 	return
 }
