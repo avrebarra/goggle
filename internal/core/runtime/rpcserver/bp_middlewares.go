@@ -93,7 +93,13 @@ func MWRecoverer() mux.MiddlewareFunc {
 					reqctx := ctxboard.GetData(ctx, KeyRequestContext).(*RequestContext)
 					reqctx.Error = err
 
-					resp := &ServerResponse{ID: reqctx.OpsID, Error: RespErrorPresets[ErrUnexpected].WithMessage(err.Error())}
+					// build output
+					var sverr ServerError
+					if !errors.As(err, &sverr) {
+						sverr = RespErrorPresets[ErrUnexpected]
+					}
+
+					resp := &ServerResponse{ID: reqctx.OpsID, Error: sverr}
 					w.Header().Set("Content-Type", "application/json; charset=utf-8")
 					_ = json.NewEncoder(w).Encode(resp)
 				}

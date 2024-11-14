@@ -12,10 +12,10 @@ const (
 )
 
 var RespErrorPresets map[ErrKind]ServerError = map[ErrKind]ServerError{
-	ErrUnexpected:    {Code: "unexpected", Message: "unexpected error"},
-	ErrUnauthorized:  {Code: "unauthorized", Message: "not authorized for resource"},
-	ErrNotFound:      {Code: "not_found", Message: "resource not found"},
-	ErrValidation:    {Code: "invalid", Message: "validation error"},
-	ErrProcessFailed: {Code: "failed", Message: "process failed"},
-	ErrRateLimited:   {Code: "rate_limited", Message: "rate limited"},
+	ErrUnexpected:    {Code: "unexpected", Message: "Unexpected error occurred."},
+	ErrUnauthorized:  {Code: "unauthorized", Message: "You are not authorized for this resource."},
+	ErrNotFound:      {Code: "not_found", Message: "Resource was not found."},
+	ErrValidation:    {Code: "invalid", Message: "Request was invalid."},
+	ErrProcessFailed: {Code: "failed", Message: "Process failed."},
+	ErrRateLimited:   {Code: "rate_limited", Message: "Too many requests, try again later."},
 }
