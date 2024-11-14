@@ -15,30 +15,30 @@ import (
 )
 
 var (
-	SQLiteTableToggles    = "toggles"
-	SQLiteTableAccessLogs = "access_logs"
+	PostgreTableToggles    = "toggles"
+	PostgreTableAccessLogs = "access_logs"
 )
 
-var _ Storage = (*StorageSQLite)(nil)
+var _ Storage = (*StoragePostgre)(nil)
 
-type ConfigStorageSQLite struct {
+type ConfigStoragePostgre struct {
 	DB *gorm.DB `validate:"required,structonly"`
 }
 
-type StorageSQLite struct {
-	ConfigStorageSQLite
+type StoragePostgre struct {
+	ConfigStoragePostgre
 }
 
-func NewStorageSQLite(cfg ConfigStorageSQLite) (out *StorageSQLite, err error) {
+func NewStoragePostgre(cfg ConfigStoragePostgre) (out *StoragePostgre, err error) {
 	if err = validator.Validate(&cfg); err != nil {
 		err = errors.Wrap(err, "bad config")
 		return
 	}
-	out = &StorageSQLite{ConfigStorageSQLite: cfg}
+	out = &StoragePostgre{ConfigStoragePostgre: cfg}
 	return
 }
 
-func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
+func (s *StoragePostgre) FetchPaged(ctx context.Context, in ParamsFetchPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsFetchPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
 		err = errors.Wrap(err, "bad params")
@@ -62,15 +62,15 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 
 	data := []ResultData{}
 
-	sqla := s.DB.Table(SQLiteTableAccessLogs).
+	sqla := s.DB.Table(PostgreTableAccessLogs).
 		Select("toggle_id, MAX(created_at) AS last_accessed_at").
 		Group("toggle_id")
-	sqaf := s.DB.Table(SQLiteTableAccessLogs).
+	sqaf := s.DB.Table(PostgreTableAccessLogs).
 		Select("toggle_id, COUNT(*) AS access_count").
-		Where("created_at > ?", time.Now().AddDate(0, 0, -7)).
+		Where("created_at > (?)", time.Now().AddDate(0, 0, -7)).
 		Group("toggle_id")
 
-	q := s.DB.Table(SQLiteTableToggles+" as tog").
+	q := s.DB.Table(PostgreTableToggles+" as tog").
 		Joins("LEFT JOIN (?) as la ON la.toggle_id = tog.id", sqla).
 		Joins("LEFT JOIN (?) as af ON af.toggle_id = tog.id", sqaf).
 		Select("id, status, updated_at, last_accessed_at, af.access_count as access_freq_weekly").
@@ -110,7 +110,7 @@ func (s *StorageSQLite) FetchPaged(ctx context.Context, in ParamsFetchPaged) (ou
 	return
 }
 
-func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
+func (s *StoragePostgre) ListHeadlessAccessPaged(ctx context.Context, in ParamsListHeadlessAccessPaged) (out []domaintoggle.ToggleWithDetail, total int64, err error) {
 	utils.ApplyDefaults(&in, &ParamsListHeadlessAccessPaged{Limit: 10, SortBy: "id", SortOrder: "asc"})
 	if err = validator.Validate(in); err != nil {
 		err = errors.Wrap(err, "bad params")
@@ -118,9 +118,9 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 	}
 
 	type ResultData struct {
-		ID               string      `gorm:"column:toggle_id"`
-		LastAccessedAt   null.String `gorm:"column:last_accessed_at"`
-		AccessFreqWeekly int         `gorm:"column:access_freq_weekly"`
+		ID               string    `gorm:"column:toggle_id"`
+		LastAccessedAt   time.Time `gorm:"column:last_accessed_at"`
+		AccessFreqWeekly int       `gorm:"column:access_freq_weekly"`
 	}
 
 	// ***
@@ -132,12 +132,12 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 
 	data := []ResultData{}
 
-	sqacs := s.DB.Table(SQLiteTableAccessLogs).
+	sqacs := s.DB.Table(PostgreTableAccessLogs).
 		Group("toggle_id").
 		Select("toggle_id, MAX(created_at) AS last_accessed_at")
-	sqtog := s.DB.Table(SQLiteTableToggles).
+	sqtog := s.DB.Table(PostgreTableToggles).
 		Select("id, TRUE as hit")
-	sqaf := s.DB.Table(SQLiteTableAccessLogs).
+	sqaf := s.DB.Table(PostgreTableAccessLogs).
 		Select("toggle_id, COUNT(*) AS access_count").
 		Where("created_at > ?", time.Now().AddDate(0, 0, -7)).
 		Group("toggle_id")
@@ -161,10 +161,6 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 
 	for _, d := range data {
 		val := domaintoggle.ToggleWithDetail{}
-		if d.LastAccessedAt.Valid {
-			t, _ := time.Parse(time.DateTime+"-07:00", d.LastAccessedAt.String)
-			val.LastAccessedAt = t
-		}
 		utils.MorphFrom(&val, &d, nil)
 		out = append(out, val)
 	}
@@ -172,7 +168,7 @@ func (s *StorageSQLite) ListHeadlessAccessPaged(ctx context.Context, in ParamsLi
 	return
 }
 
-func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error) {
+func (s *StoragePostgre) FetchToggleStatByID(ctx context.Context, id string) (out domaintoggle.ToggleStat, err error) {
 	type ResultData struct {
 		ID     string `gorm:"column:id"`
 		Status bool   `gorm:"column:status"`
@@ -181,7 +177,7 @@ func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out
 	// ***
 
 	data := ResultData{}
-	q := s.DB.Table(SQLiteTableToggles+" as tog").
+	q := s.DB.Table(PostgreTableToggles+" as tog").
 		Where("tog.id = ?", id).
 		Select("tog.id, tog.status").
 		First(&data)
@@ -198,7 +194,7 @@ func (s *StorageSQLite) FetchToggleStatByID(ctx context.Context, id string) (out
 	return
 }
 
-func (s *StorageSQLite) UpsertToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
+func (s *StoragePostgre) UpsertToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
 	type ParamData struct {
 		ID        string    `gorm:"column:id" validate:"-"`
 		Status    bool      `gorm:"column:status" validate:"-"`
@@ -227,7 +223,7 @@ func (s *StorageSQLite) UpsertToggle(ctx context.Context, in domaintoggle.Toggle
 		}()
 	}
 
-	q := execer.Table(SQLiteTableToggles)
+	q := execer.Table(PostgreTableToggles)
 	if data.ID != "" {
 		q = q.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
@@ -244,7 +240,7 @@ func (s *StorageSQLite) UpsertToggle(ctx context.Context, in domaintoggle.Toggle
 	return
 }
 
-func (s *StorageSQLite) RemoveTogglesByIDs(ctx context.Context, ids []string) (err error) {
+func (s *StoragePostgre) RemoveTogglesByIDs(ctx context.Context, ids []string) (err error) {
 	execer := s.DB
 
 	if saga, ok := ctxsaga.GetSaga(ctx); ok {
@@ -256,7 +252,7 @@ func (s *StorageSQLite) RemoveTogglesByIDs(ctx context.Context, ids []string) (e
 	}
 
 	type ResultData struct{}
-	q := execer.Table(SQLiteTableToggles+" as tog").
+	q := execer.Table(PostgreTableToggles+" as tog").
 		Delete(&ResultData{}, "tog.id IN (?)", ids)
 	err = q.Error
 	if err != nil {

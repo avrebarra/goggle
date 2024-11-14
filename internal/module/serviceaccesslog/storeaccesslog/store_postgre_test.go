@@ -12,18 +12,18 @@ import (
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-type TestSuiteSQLite struct {
+type TestSuite struct {
 	Context context.Context
 	MockDB  sqlmock.Sqlmock
-	Store   *storeaccesslog.StorageSQLite
+	Store   *storeaccesslog.StoragePostgre
 }
 
-func SetupSuiteSQLite(t *testing.T) *TestSuiteSQLite {
-	s := &TestSuiteSQLite{}
+func SetupSuite(t *testing.T) *TestSuite {
+	s := &TestSuite{}
 
 	gofakeit.Seed(333555444) // for deterministic tests
 
@@ -33,13 +33,11 @@ func SetupSuiteSQLite(t *testing.T) *TestSuiteSQLite {
 	s.MockDB = mock
 	require.NoError(t, err)
 
-	s.MockDB.ExpectQuery("select sqlite_version()").WillReturnRows(sqlmock.NewRows([]string{"sqlite_version()"}).AddRow("3.36.1"))
-
-	dialector := sqlite.New(sqlite.Config{Conn: db})
+	dialector := postgres.New(postgres.Config{Conn: db})
 	gormdb, err := gorm.Open(dialector, &gorm.Config{})
 	require.NoError(t, err)
 
-	store, err := storeaccesslog.NewStorageSQLite(storeaccesslog.ConfigStorageSQLite{
+	store, err := storeaccesslog.NewStoragePostgre(storeaccesslog.ConfigStoragePostgre{
 		DB: gormdb,
 	})
 	require.NoError(t, err)
@@ -48,28 +46,28 @@ func SetupSuiteSQLite(t *testing.T) *TestSuiteSQLite {
 	return s
 }
 
-func TestNewStorageSQLite(t *testing.T) {
+func TestNewStoragePostgre(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 		assert.NotNil(t, s.Store)
 	})
 
 	t.Run("on bad deps", func(t *testing.T) {
-		_, err := storeaccesslog.NewStorageSQLite(storeaccesslog.ConfigStorageSQLite{
+		_, err := storeaccesslog.NewStoragePostgre(storeaccesslog.ConfigStoragePostgre{
 			DB: nil,
 		})
 		assert.Error(t, err)
 	})
 }
 
-func TestStorageSQLite_FetchPaged(t *testing.T) {
+func TestStoragePostgre_FetchPaged(t *testing.T) {
 	Q1 := normalize("SELECT count(*) FROM access_logs as log")
-	Q2 := normalize("SELECT id, toggle_id, created_at FROM access_logs as log ORDER BY id asc LIMIT 10")
-	Q3 := normalize("SELECT count(*) FROM access_logs as log WHERE log.toggle_id IN (?,?)")
-	Q4 := normalize("SELECT id, toggle_id, created_at FROM access_logs as log WHERE log.toggle_id IN (?,?) ORDER BY id asc LIMIT 10")
+	Q2 := normalize("SELECT id, toggle_id, created_at FROM access_logs as log ORDER BY id asc LIMIT $1")
+	Q3 := normalize("SELECT count(*) FROM access_logs as log WHERE log.toggle_id IN ($1,$2)")
+	Q4 := normalize("SELECT id, toggle_id, created_at FROM access_logs as log WHERE log.toggle_id IN ($1,$2) ORDER BY id asc LIMIT $3")
 
 	t.Run("ok", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		s.MockDB.ExpectQuery(Q1).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 		s.MockDB.ExpectQuery(Q2).WillReturnRows(sqlmock.NewRows([]string{"id", "toggle_id", "created_at"}).AddRow(1, "toggle1", "2024-11-09 22:27:54.798977+07:00").AddRow(2, "toggle2", "2024-11-09 22:27:54.798977+07:00"))
@@ -83,7 +81,7 @@ func TestStorageSQLite_FetchPaged(t *testing.T) {
 	})
 
 	t.Run("on invalid params", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		ctx := s.Context
 		_, _, err := s.Store.FetchPaged(ctx, storeaccesslog.ParamsFetchPaged{
@@ -95,7 +93,7 @@ func TestStorageSQLite_FetchPaged(t *testing.T) {
 	})
 
 	t.Run("on filter by toggle id", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		s.MockDB.ExpectQuery(Q3).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 		s.MockDB.ExpectQuery(Q4).WillReturnRows(sqlmock.NewRows([]string{"id", "toggle_id", "created_at"}).AddRow(1, "toggle1", "2024-11-09 22:27:54.798977+07:00").AddRow(2, "toggle2", "2024-11-09 22:27:54.798977+07:00"))
@@ -111,7 +109,7 @@ func TestStorageSQLite_FetchPaged(t *testing.T) {
 	})
 
 	t.Run("on skip totaling", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		s.MockDB.ExpectQuery(Q2).WillReturnRows(sqlmock.NewRows([]string{"id", "toggle_id", "created_at"}).AddRow(1, "toggle1", "2024-11-09 22:27:54.798977+07:00").AddRow(2, "toggle2", "2024-11-09 22:27:54.798977+07:00"))
 
@@ -126,7 +124,7 @@ func TestStorageSQLite_FetchPaged(t *testing.T) {
 	})
 
 	t.Run("on fetch failed", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		s.MockDB.ExpectQuery(Q1).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 		s.MockDB.ExpectQuery(Q2).WillReturnError(assert.AnError)
@@ -138,11 +136,11 @@ func TestStorageSQLite_FetchPaged(t *testing.T) {
 	})
 }
 
-func TestStorageSQLite_CreateLog(t *testing.T) {
-	Q1 := normalize("INSERT INTO `access_logs` (`toggle_id`,`created_at`,`id`) VALUES (?,?,?) RETURNING `id`")
+func TestStoragePostgre_CreateLog(t *testing.T) {
+	Q1 := normalize(`INSERT INTO "access_logs" ("toggle_id","created_at","id") VALUES ($1,$2,$3) RETURNING "id"`)
 
 	t.Run("ok", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		accesslog := domainaccesslog.AccessLog{}.Fake()
 
@@ -160,7 +158,7 @@ func TestStorageSQLite_CreateLog(t *testing.T) {
 	})
 
 	t.Run("on bad data", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		accesslog := domainaccesslog.AccessLog{}.Fake()
 		accesslog.ToggleID = ""
@@ -173,7 +171,7 @@ func TestStorageSQLite_CreateLog(t *testing.T) {
 	})
 
 	t.Run("on saga rollback", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		accesslog := domainaccesslog.AccessLog{}.Fake()
 
@@ -192,7 +190,7 @@ func TestStorageSQLite_CreateLog(t *testing.T) {
 	})
 
 	t.Run("on query failed", func(t *testing.T) {
-		s := SetupSuiteSQLite(t)
+		s := SetupSuite(t)
 
 		accesslog := domainaccesslog.AccessLog{}.Fake()
 
@@ -211,4 +209,4 @@ func TestStorageSQLite_CreateLog(t *testing.T) {
 	})
 }
 
-func TestStorageSQLite_DeleteAllByToggleIDs(t *testing.T) { t.SkipNow() }
+func TestStoragePostgre_DeleteAllByToggleIDs(t *testing.T) { t.SkipNow() }

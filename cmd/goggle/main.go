@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"github.com/leaanthony/clir"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -38,12 +40,20 @@ var (
 )
 
 type BaseConfig struct {
-	DebugMode           bool          `env:"DEBUG_MODE" yaml:"debug_mode"`
-	ConfigFilePath      string        `env:"CONFIG_PATH" validate:"required"`
-	PortUI              int           `yaml:"port_ui" env:"PORT_UI" validate:"required"`
-	PortRPC             int           `yaml:"port_rpc" env:"PORT_RPC" validate:"required"`
-	PortHTTP            int           `yaml:"port_http" env:"PORT_HTTP" validate:"required"`
-	SQLiteDBPath        string        `yaml:"sqlite_db_path" env:"SQLITE_DB_PATH" validate:"required"`
+	DebugMode      bool   `env:"DEBUG_MODE" yaml:"debug_mode"`
+	ConfigFilePath string `env:"CONFIG_PATH" validate:"required"`
+	PortUI         int    `yaml:"port_ui" env:"PORT_UI" validate:"required"`
+	PortRPC        int    `yaml:"port_rpc" env:"PORT_RPC" validate:"required"`
+	PortHTTP       int    `yaml:"port_http" env:"PORT_HTTP" validate:"required"`
+
+	DBMode            string `yaml:"db_mode" env:"DB_MODE" validate:"required,oneof=sqlite postgre"`
+	DBSQLitePath      string `yaml:"db_sqlite_path" env:"DB_SQLITE_PATH" validate:"required"`
+	DBPostgreHost     string `yaml:"db_postgre_host" env:"DB_POSTGRE_HOST" validate:"required_if=DBMode postgre"`
+	DBPostgreUser     string `yaml:"db_postgre_user" env:"DB_POSTGRE_USER" validate:"required_if=DBMode postgre"`
+	DBPostgrePassword string `yaml:"db_postgre_password" env:"DB_POSTGRE_PASSWORD" validate:"required_if=DBMode postgre"`
+	DBPostgreName     string `yaml:"db_postgre_name" env:"DB_POSTGRE_NAME" validate:"required_if=DBMode postgre"`
+	DBPostgrePort     int    `yaml:"db_postgre_port" env:"DB_POSTGRE_PORT" validate:"required_if=DBMode postgre"`
+
 	ClientGitHubTimeout time.Duration `yaml:"client_github_timeout" env:"CLIENT_GITHUB_TIMEOUT" validate:"required"`
 	ClientGitHubBaseURL string        `yaml:"client_github_base_url" env:"CLIENT_GITHUB_BASE_URL" validate:"required,endswith=/"`
 
@@ -61,7 +71,8 @@ func main() {
 		PortUI:              9001,
 		PortHTTP:            9002,
 		ConfigFilePath:      "./config.yaml",
-		SQLiteDBPath:        "./local.db",
+		DBMode:              "sqlite",
+		DBSQLitePath:        "./local.db",
 		ClientGitHubBaseURL: "https://api.github.com/",
 		ClientGitHubTimeout: 10 * time.Second,
 
@@ -179,22 +190,52 @@ type BaseDeps struct {
 }
 
 func ConstructDeps(conf *BaseConfig) *BaseDeps {
-	db, err := gorm.Open(sqlite.Open(conf.SQLiteDBPath), &gorm.Config{
-		SkipDefaultTransaction: true,
-		Logger: func() logger.Interface {
-			e := logger.Discard
-			if conf.DebugMode {
-				w := log.New(os.Stdout, "\r\n", log.LstdFlags)
-				e = logger.New(w, logger.Config{
-					Colorful:             true,
-					LogLevel:             logger.Info,
-					ParameterizedQueries: false,
-				})
-			}
-			return e
-		}(),
-	})
-	ensure(err, "deps db/sqlite")
+	gormlogger := func() logger.Interface {
+		e := logger.Discard
+		if conf.DebugMode {
+			w := log.New(os.Stdout, "\r\n", log.LstdFlags)
+			e = logger.New(w, logger.Config{
+				Colorful:             true,
+				LogLevel:             logger.Info,
+				ParameterizedQueries: false,
+			})
+		}
+		return e
+	}()
+
+	var err error
+	var togglestore storetoggle.Storage
+	var accesslogstore storeaccesslog.Storage
+	switch conf.DBMode {
+	case "postgre":
+		dsnpostgres := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", conf.DBPostgreHost, conf.DBPostgrePort, conf.DBPostgreUser, conf.DBPostgrePassword, conf.DBPostgreName)
+		db, err := gorm.Open(postgres.New(postgres.Config{
+			DSN:                  dsnpostgres,
+			PreferSimpleProtocol: true, // disables implicit prepared statement usage
+		}), &gorm.Config{
+			Logger: gormlogger,
+		})
+		ensure(err, "deps db/postgres")
+
+		togglestore, err = storetoggle.NewStoragePostgre(storetoggle.ConfigStoragePostgre{DB: db})
+		ensure(err, "deps store/postgres/toggle")
+
+		accesslogstore, err = storeaccesslog.NewStoragePostgre(storeaccesslog.ConfigStoragePostgre{DB: db})
+		ensure(err, "deps store/postgres/accesslog")
+
+	default:
+		db, err := gorm.Open(sqlite.Open(conf.DBSQLitePath), &gorm.Config{
+			SkipDefaultTransaction: true,
+			Logger:                 gormlogger,
+		})
+		ensure(err, "deps db/sqlite")
+
+		togglestore, err = storetoggle.NewStorageSQLite(storetoggle.ConfigStorageSQLite{DB: db})
+		ensure(err, "deps store/sqlite/toggle")
+
+		accesslogstore, err = storeaccesslog.NewStorageSQLite(storeaccesslog.ConfigStorageSQLite{DB: db})
+		ensure(err, "deps store/sqlite/accesslog")
+	}
 
 	httpcli := resty.New()
 	httpcli.SetDebug(conf.DebugMode)
@@ -204,12 +245,6 @@ func ConstructDeps(conf *BaseConfig) *BaseDeps {
 		BaseURL:    conf.ClientGitHubBaseURL,
 	})
 	ensure(err, "deps client/github")
-
-	togglestore, err := storetoggle.NewStorageSQLite(storetoggle.ConfigStorageSQLite{DB: db})
-	ensure(err, "deps store/toggle")
-
-	accesslogstore, err := storeaccesslog.NewStorageSQLite(storeaccesslog.ConfigStorageSQLite{DB: db})
-	ensure(err, "deps store/accesslog")
 
 	accesslogsvc, err := serviceaccesslog.NewService(serviceaccesslog.ServiceConfig{
 		AccessLogStore: accesslogstore,
