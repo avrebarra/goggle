@@ -68,7 +68,7 @@ func (s *Handler) ListStrayToggles(r *http.Request, in *ReqListStrayToggles, out
 	return copier.Copy(out, resp)
 }
 
-func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *Toggle) (err error) {
+func (s *Handler) GetToggle(r *http.Request, in *ReqGetToggle, out *ToggleWithDetail) (err error) {
 	if err = validator.Validate(in); err != nil {
 		err = errors.Wrap(err, "bad request")
 		return

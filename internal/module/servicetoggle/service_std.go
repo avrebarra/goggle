@@ -88,6 +88,11 @@ func (s *ServiceStd) DoGetToggle(ctx context.Context, id string) (out domaintogg
 }
 
 func (s *ServiceStd) DoCreateToggle(ctx context.Context, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
+	if err = validator.Validate(in); err != nil {
+		err = errors.Wrap(err, "bad params")
+		return
+	}
+
 	data1, err := s.ToggleStore.FetchToggleStatByID(ctx, in.ID)
 	if errors.Is(err, storagetoggle.ErrStoreNotFound) {
 		err = nil // discard err
@@ -113,6 +118,11 @@ func (s *ServiceStd) DoCreateToggle(ctx context.Context, in domaintoggle.Toggle)
 }
 
 func (s *ServiceStd) DoUpdateToggle(ctx context.Context, id string, in domaintoggle.Toggle) (out domaintoggle.Toggle, err error) {
+	if err = validator.Validate(in); err != nil {
+		err = errors.Wrap(err, "bad params")
+		return
+	}
+
 	resp1, _, err := s.ToggleStore.FetchPaged(ctx, storagetoggle.ParamsFetchPaged{FilterIDs: []string{id}, SkipTotal: true})
 	if err != nil {
 		err = errors.Wrap(err, "data check failed")

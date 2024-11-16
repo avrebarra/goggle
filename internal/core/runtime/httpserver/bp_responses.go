@@ -18,9 +18,9 @@ func (e ServerOutput) Normalize() ServerOutput {
 
 type ServerError struct {
 	error
-	Code   string `json:"code"`
-	Cause  string `json:"cause"`
-	Detail any    `json:"detail,omitempty"`
+	Code    string `json:"code"`
+	Cause   string `json:"cause"`
+	Details any    `json:"details,omitempty"`
 }
 
 func (e ServerError) Error() string {
@@ -37,7 +37,7 @@ func (e ServerError) WithMessage(msg string) ServerError {
 }
 
 func (e ServerError) WithDetail(data any) ServerError {
-	e.Detail = data
+	e.Details = data
 	return e
 }
 

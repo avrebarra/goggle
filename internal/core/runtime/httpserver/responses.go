@@ -1,10 +1,11 @@
 package httpserver
 
 var (
-	ErrUnexpected = ServerError{Code: "unexpected", Cause: "unexpected error"}
-	ErrNotFound   = ServerError{Code: "not_found", Cause: "resource not found"}
-	ErrValidation = ServerError{Code: "invalid", Cause: "validation error"}
-	ErrDuplicate  = ServerError{Code: "duplicate", Cause: "resource already exists"}
+	ErrUnexpected    = ServerError{Code: "unexpected", Cause: "unexpected error"}
+	ErrNotFound      = ServerError{Code: "not_found", Cause: "resource not found"}
+	ErrUnprocessable = ServerError{Code: "unprocessable", Cause: "unprocessable input"}
+	ErrValidation    = ServerError{Code: "invalid", Cause: "validation error"}
+	ErrDuplicate     = ServerError{Code: "duplicate", Cause: "resource already exists"}
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 	RespUnexpected
 )
 
-var respmapper map[RespKind]preset = map[RespKind]preset{
+var PresetResp map[RespKind]preset = map[RespKind]preset{
 	RespSuccess:       {Status: 200, Resp: Resp{Message: "Request processed successfully!"}},
 	RespBadRequest:    {Status: 400, Resp: Resp{Message: "Your request was not valid. Please try again with valid data."}},
 	RespUnauthorized:  {Status: 401, Resp: Resp{Message: "You are not authorized to access specified resource."}},

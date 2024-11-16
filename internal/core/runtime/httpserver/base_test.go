@@ -87,8 +87,6 @@ type APIRequest struct {
 func BakeAPIRequest(t *testing.T, in APIRequest) (req *http.Request) {
 	data := in.Data
 
-	time.Now().Before(time.Now())
-
 	err := validator.Validate(in)
 	if err != nil {
 		err = errors.Wrap(err, "cannot bake request due to invalid request details")

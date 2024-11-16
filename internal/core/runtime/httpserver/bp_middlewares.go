@@ -13,6 +13,7 @@ import (
 	"github.com/avrebarra/goggle/internal/core/logger"
 	"github.com/avrebarra/goggle/internal/utils"
 	"github.com/avrebarra/goggle/utils/ctxboard"
+	"github.com/avrebarra/goggle/utils/validator"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/pkg/errors"
@@ -110,6 +111,7 @@ func MWRecoverer() echo.MiddlewareFunc {
 					}
 					if !errors.As(err, &sverr) {
 						sverr = ServerError{
+							error: err,
 							Code:  "nocode",
 							Cause: "unexpected error",
 						}
@@ -119,11 +121,29 @@ func MWRecoverer() echo.MiddlewareFunc {
 
 					// build output
 					var tpl preset
+					var validationError validator.ValidationError
 					switch true {
 					case errors.Is(err, ErrNotFound):
-						tpl = respmapper[RespNotFound]
+						tpl = PresetResp[RespNotFound]
+					case errors.As(err, &validationError):
+						tpl = PresetResp[RespBadRequest]
+						sverr = ErrValidation
+						type validationdetail struct {
+							Field      string `json:"field"`
+							Constraint string `json:"constraint"`
+							Error      string `json:"error"`
+						}
+						details := []validationdetail{}
+						for _, e := range validationError.ErrorEntries {
+							details = append(details, validationdetail{
+								Field:      e.Orig.Field(),
+								Constraint: e.Orig.ActualTag(),
+								Error:      fmt.Sprintf("%s must pass `%s` constraint", e.Orig.Field(), e.Orig.Tag()),
+							})
+						}
+						sverr.Details = details
 					default:
-						tpl = respmapper[RespUnexpected]
+						tpl = PresetResp[RespUnexpected]
 					}
 
 					status := tpl.Status
@@ -152,10 +172,17 @@ func (r RequestPack) Bind(t any) (err error) {
 	ctx := c.Request().Context()
 	reqctx := ctxboard.GetData(ctx, KeyRequestContext).(*RequestContext)
 
-	res := r.Context.Bind(t)
-	reqctx.IngoingData = res
+	if err = r.Context.Bind(t); err != nil {
+		err = errors.Wrap(ErrUnprocessable, err.Error())
+		return
+	}
+	reqctx.IngoingData = t
 
-	return res
+	if err = validator.Validate(t); err != nil {
+		return
+	}
+
+	return err
 }
 
 func (r RequestPack) Send(kind RespKind, data any) (err error) {
@@ -163,7 +190,7 @@ func (r RequestPack) Send(kind RespKind, data any) (err error) {
 	ctx := c.Request().Context()
 	reqctx := ctxboard.GetData(ctx, KeyRequestContext).(*RequestContext)
 
-	tpl := respmapper[kind]
+	tpl := PresetResp[kind]
 	status := tpl.Status
 	out := tpl.Resp
 	out.Data = data
