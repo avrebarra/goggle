@@ -11,7 +11,7 @@ import (
 func TestParallel(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
-		errs := do.Parallel(ctx, []func() error{
+		errs := do.Parallel(ctx, 10, []func() error{
 			func() (err error) { return nil },
 			func() (err error) { return nil },
 			func() (err error) { return nil },
@@ -26,7 +26,7 @@ func TestParallel(t *testing.T) {
 
 	t.Run("on some errored", func(t *testing.T) {
 		ctx := context.Background()
-		errs := do.Parallel(ctx, []func() error{
+		errs := do.Parallel(ctx, 10, []func() error{
 			func() (err error) { return nil },
 			func() (err error) { return assert.AnError },
 			func() (err error) { return nil },

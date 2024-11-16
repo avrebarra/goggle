@@ -43,7 +43,7 @@ func main() {
 	ctx = ctxboard.CreateWith(ctx)
 	saga := ctxsaga.CreateSaga(ctx)
 
-	errs := do.Parallel(ctx, []func() error{
+	errs := do.Parallel(ctx, 10, []func() error{
 		func() (err error) { return Do(ctx, "task_a/create_user", true, true) },
 		func() (err error) { return Do(ctx, "task_b/create_address", true, true) },
 		func() (err error) { return Do(ctx, "task_c/fill_balance", false, true) },

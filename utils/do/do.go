@@ -3,32 +3,36 @@ package do
 import (
 	"context"
 	"sync"
+
+	"golang.org/x/sync/semaphore"
 )
 
-func Parallel(ctx context.Context, fns []func() error) (errs []error) {
+func Parallel(ctx context.Context, concurrency int, fns []func() error) (errs []error) {
 	var wg sync.WaitGroup
+	sem := semaphore.NewWeighted(int64(concurrency))
 	errChan := make(chan error, len(fns))
-	resultOrder := make(chan int, len(fns))
 
-	for i, fn := range fns {
+	for _, fn := range fns {
 		wg.Add(1)
-		go func(i int, fn func() error) {
+		go func(fn func() error) {
 			defer wg.Done()
+			if err := sem.Acquire(ctx, 1); err != nil {
+				errChan <- err
+				return
+			}
+			defer sem.Release(1)
 			errChan <- fn()
-			resultOrder <- i
-		}(i, fn)
+		}(fn)
 	}
 
 	go func() {
 		wg.Wait()
 		close(errChan)
-		close(resultOrder)
 	}()
 
 	errs = make([]error, len(fns))
-	for i := range resultOrder {
-		err := <-errChan
-		errs[i] = err
+	for i := 0; i < len(fns); i++ {
+		errs[i] = <-errChan
 	}
 
 	return errs
