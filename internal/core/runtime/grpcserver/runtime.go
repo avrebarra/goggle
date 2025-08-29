@@ -68,9 +68,26 @@ func (e *Runtime) Start(ctx context.Context) <-chan bool {
 	done := make(chan bool)
 	go func() {
 		defer close(done)
-		if err := e.Run(); err != nil {
-			slog.Error("gRPC server error", "error", err)
+
+		// Start the server in a separate goroutine
+		errCh := make(chan error, 1)
+		go func() {
+			if err := e.Run(); err != nil {
+				errCh <- err
+			}
+		}()
+
+		// Wait for either context cancellation or server error
+		select {
+		case <-ctx.Done():
+			slog.Info("gRPC server stopping...")
+			e.Stop()
+		case err := <-errCh:
+			if err != nil {
+				slog.Error("gRPC server error", "error", err)
+			}
 		}
+
 		done <- true
 	}()
 	return done
