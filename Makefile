@@ -15,7 +15,7 @@ generate-mock:
 	@./scripts/genmock .
 
 generate-proto:
-	@./scripts/genproto
+	@./scripts/genproto -f proto/goggle.proto -o proto/generated
 
 build: build-ui build-go
 
