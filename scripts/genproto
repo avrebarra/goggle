@@ -10,15 +10,16 @@ if ! docker info &> /dev/null; then
     exit 1
 fi
 
-# Create output directory
+# Create output directories
 mkdir -p proto/generated
+mkdir -p internal/module/clientauth/proto/generated
 
 # Get the absolute path to the project directory
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "� Generating Go code using dockerized protoc..."
+echo "🚀 Generating Go code using dockerized protoc..."
 
-# Use official protoc docker image with Go plugins
+# Generate code for main goggle service
 docker run --rm \
     -v "${PROJECT_DIR}:/workspace" \
     -w /workspace \
@@ -29,11 +30,28 @@ docker run --rm \
     --go-source-relative \
     --with-grpc
 
+# Generate code for auth client
+docker run --rm \
+    -v "${PROJECT_DIR}:/workspace" \
+    -w /workspace \
+    namely/protoc-all:1.51_1 \
+    -f internal/module/clientauth/proto/auth.proto \
+    -l go \
+    -o internal/module/clientauth/proto/generated \
+    --go-source-relative \
+    --with-grpc
+
 # Fix the generated file paths (the docker image creates nested directories)
 if [ -d "proto/generated/proto" ]; then
     mv proto/generated/proto/* proto/generated/
     rmdir proto/generated/proto
 fi
 
+if [ -d "internal/module/clientauth/proto/generated/internal/module/clientauth/proto" ]; then
+    mv internal/module/clientauth/proto/generated/internal/module/clientauth/proto/* internal/module/clientauth/proto/generated/
+    rm -rf internal/module/clientauth/proto/generated/internal
+fi
+
 echo "✅ gRPC code generation completed!"
 echo "   Generated files in: proto/generated/"
+echo "   Generated files in: internal/module/clientauth/proto/generated/"
