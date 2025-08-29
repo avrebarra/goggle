@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package goggle;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "github.com/avrebarra/goggle/proto/goggle";
+
+// Goggle service for managing feature toggles
+service GoggleService {
+  // Health check endpoint
+  rpc Ping(PingRequest) returns (PingResponse);
+  
+  // Toggle management
+  rpc ListToggles(ListTogglesRequest) returns (ListTogglesResponse);
+  rpc ListStrayToggles(ListStrayTogglesRequest) returns (ListStrayTogglesResponse);
+  rpc GetToggle(GetToggleRequest) returns (ToggleWithDetail);
+  rpc CreateToggle(CreateToggleRequest) returns (Toggle);
+  rpc UpdateToggle(UpdateToggleRequest) returns (Toggle);
+  rpc RemoveToggle(RemoveToggleRequest) returns (Toggle);
+  rpc StatToggle(StatToggleRequest) returns (ToggleCompact);
+}
+
+// ======= Request/Response Messages =======
+
+message PingRequest {}
+
+message PingResponse {
+  string version = 1;
+  google.protobuf.Timestamp started_at = 2;
+  string uptime = 3;
+}
+
+message ListTogglesRequest {
+  int32 offset = 1;
+  int32 limit = 2;
+  string sort_by = 3;
+  string sort_order = 4;
+  google.protobuf.BoolValue filter_accessed = 5;
+}
+
+message ListTogglesResponse {
+  repeated ToggleWithDetail items = 1;
+  int64 total = 2;
+}
+
+message ListStrayTogglesRequest {
+  int32 offset = 1;
+  int32 limit = 2;
+  string sort_by = 3;
+  string sort_order = 4;
+}
+
+message ListStrayTogglesResponse {
+  repeated ToggleStatLog items = 1;
+  int64 total = 2;
+}
+
+message GetToggleRequest {
+  string id = 1;
+}
+
+message CreateToggleRequest {
+  string id = 1;
+  bool status = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message UpdateToggleRequest {
+  string id = 1;
+  Toggle data = 2;
+}
+
+message RemoveToggleRequest {
+  string id = 1;
+}
+
+message StatToggleRequest {
+  string id = 1;
+}
+
+// ======= Entity Messages =======
+
+message Toggle {
+  string id = 1;
+  bool status = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message ToggleWithDetail {
+  string id = 1;
+  bool status = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  google.protobuf.Timestamp last_accessed_at = 4;
+  int32 access_freq_weekly = 5;
+}
+
+message ToggleStatLog {
+  string id = 1;
+  google.protobuf.Timestamp last_accessed_at = 2;
+  int32 access_freq_weekly = 3;
+}
+
+message ToggleCompact {
+  string id = 1;
+  bool status = 2;
+}
