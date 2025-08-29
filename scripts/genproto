@@ -1,0 +1,126 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+require 'optparse'
+
+def log(message)
+  puts message
+end
+
+def check_docker
+  unless system('docker info &>/dev/null')
+    log "❌ Docker is not running. Please start Docker."
+    exit 1
+  end
+end
+
+def run_protoc(proto_file, output_dir)
+  log "🚀 Generating Go code for: #{proto_file}"
+  
+  # Ensure output directory exists
+  FileUtils.mkdir_p(output_dir)
+  
+  cmd = [
+    'docker', 'run', '--rm',
+    '-v', "#{Dir.pwd}:/workspace",
+    '-w', '/workspace',
+    'namely/protoc-all:1.51_1',
+    '-f', proto_file,
+    '-l', 'go',
+    '-o', output_dir,
+    '--go-source-relative',
+    '--with-grpc'
+  ]
+  
+  unless system(*cmd)
+    log "❌ Failed to generate proto for: #{proto_file}"
+    exit 1
+  end
+end
+
+def fix_nested_directories(output_dir, proto_file)
+  # The docker image sometimes creates nested directories
+  # We need to move files to the correct location
+  
+  # Extract the directory structure from proto file path
+  proto_dir = File.dirname(proto_file)
+  nested_path = File.join(output_dir, proto_dir)
+  
+  if Dir.exist?(nested_path)
+    Dir.glob("#{nested_path}/*").each do |file|
+      target = File.join(output_dir, File.basename(file))
+      FileUtils.mv(file, target) unless File.exist?(target)
+    end
+    
+    # Clean up nested structure
+    FileUtils.rm_rf(File.join(output_dir, proto_dir.split('/').first)) if proto_dir != '.'
+  end
+end
+
+def show_usage
+  puts <<~USAGE
+    Usage: #{File.basename($0)} [options]
+    
+    Options:
+        -f, --file PROTO_FILE     Proto file to generate (required)
+        -o, --output OUTPUT_DIR   Output directory for generated files (required)
+        -h, --help               Show this help message
+    
+    Examples:
+        # Generate main goggle service
+        #{File.basename($0)} -f proto/goggle.proto -o proto/generated
+        
+        # Generate auth client
+        #{File.basename($0)} -f internal/module/clientauth/proto/auth.proto -o internal/module/clientauth/proto/generated
+        
+        # Generate any external client
+        #{File.basename($0)} -f proto/external/payment/payment.proto -o internal/module/clientpayment/proto/generated
+  USAGE
+end
+
+def main
+  options = {}
+  
+  OptionParser.new do |opts|
+    opts.banner = "Usage: #{File.basename($0)} [options]"
+    
+    opts.on('-f', '--file PROTO_FILE', 'Proto file to generate (required)') do |file|
+      options[:proto_file] = file
+    end
+    
+    opts.on('-o', '--output OUTPUT_DIR', 'Output directory for generated files (required)') do |dir|
+      options[:output_dir] = dir
+    end
+    
+    opts.on('-h', '--help', 'Show this help message') do
+      show_usage
+      exit
+    end
+  end.parse!
+  
+  # Validate required arguments
+  unless options[:proto_file] && options[:output_dir]
+    log "❌ Both --file and --output are required"
+    show_usage
+    exit 1
+  end
+  
+  # Validate proto file exists
+  unless File.exist?(options[:proto_file])
+    log "❌ Proto file not found: #{options[:proto_file]}"
+    exit 1
+  end
+  
+  log "🔧 Generating gRPC code from proto file using Docker..."
+  log "   Proto file: #{options[:proto_file]}"
+  log "   Output dir: #{options[:output_dir]}"
+  
+  check_docker
+  run_protoc(options[:proto_file], options[:output_dir])
+  fix_nested_directories(options[:output_dir], options[:proto_file])
+  
+  log "✅ gRPC code generation completed!"
+  log "   Generated files in: #{options[:output_dir]}/"
+end
+
+main if __FILE__ == $0
