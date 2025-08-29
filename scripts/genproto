@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+echo "🔧 Generating gRPC code from proto files using Docker..."
+
+# Check if Docker is running
+if ! docker info &> /dev/null; then
+    echo "❌ Docker is not running. Please start Docker."
+    exit 1
+fi
+
+# Create output directory
+mkdir -p proto/generated
+
+# Get the absolute path to the project directory
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+echo "� Generating Go code using dockerized protoc..."
+
+# Use official protoc docker image with Go plugins
+docker run --rm \
+    -v "${PROJECT_DIR}:/workspace" \
+    -w /workspace \
+    namely/protoc-all:1.51_1 \
+    -f proto/goggle.proto \
+    -l go \
+    -o proto/generated \
+    --go-source-relative \
+    --with-grpc
+
+# Fix the generated file paths (the docker image creates nested directories)
+if [ -d "proto/generated/proto" ]; then
+    mv proto/generated/proto/* proto/generated/
+    rmdir proto/generated/proto
+fi
+
+echo "✅ gRPC code generation completed!"
+echo "   Generated files in: proto/generated/"

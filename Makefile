@@ -14,6 +14,9 @@ test-go-cover:
 generate-mock:
 	@./scripts/genmock .
 
+generate-proto:
+	@./scripts/genproto
+
 build: build-ui build-go
 
 watch:
